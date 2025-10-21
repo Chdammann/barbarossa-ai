@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+<link rel="manifest" href="manifest.json" />
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js');
+  }
+</script>
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kaiser Friedrich Barbarossa – 3D Avatar KI</title>
+
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background-color: black;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+      #avatarCanvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      #micBtn {
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: #222;
+        color: white;
+        border: none;
+        font-size: 32px;
+        cursor: pointer;
+      }
+      #micBtn:hover {
+        background: #444;
+      }
+    </style>
+  </head>
+
+  <body>
+    <canvas id="avatarCanvas"></canvas>
+    <button id="micBtn">🎤</button>
+
+    <!-- Three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script>
+      let model, talking = false;
+
+      // === Szene, Kamera, Renderer ===
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(
+        30,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.set(0, 0, 2);
+
+      const renderer = new THREE.WebGLRenderer({
+        canvas: document.getElementById("avatarCanvas"),
+        antialias: true,
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setClearColor(0x000000);
+
+      // === Licht ===
+      const light = new THREE.DirectionalLight(0xffffff, 1.2);
+      light.position.set(1, 1, 2);
+      scene.add(light);
+      scene.add(new THREE.AmbientLight(0x666666));
+
+      // === Avatar laden ===
+      const loader = new THREE.GLTFLoader();
+      loader.load(
+        "./avatar.glb",
+        (gltf) => {
+          model = gltf.scene;
+          model.scale.set(0.4, 0.4, 0.4);
+          model.position.set(0, 0, 0);
+          scene.add(model);
+          animate();
+
+          // Begrüßung nach kurzer Verzögerung
+          setTimeout(() => {
+            speak(
+              "Hallo, ich bin Friedrich Barbarossa. Ich habe nun bald fast tausend Jahre im Kaiserberg in Lautern geschlafen. Jetzt hast du mich geweckt. Was ist dein Begehr?"
+            );
+          }, 1500);
+        },
+        undefined,
+        (err) => console.error("Fehler beim Laden des Modells:", err)
+      );
+
+      // === Animation ===
+      let baseRotX = 0,
+        baseRotY = 0;
+      function animate() {
+        requestAnimationFrame(animate);
+        const t = Date.now() * 0.001;
+
+        if (model) {
+          if (talking) {
+            // sanfte Kopfbewegungen während des Sprechens
+            const headTiltX = Math.sin(t * 1.8) * 0.03;
+            const headTiltY = Math.sin(t * 2.1 + 1.5) * 0.025;
+            model.rotation.x = baseRotX + headTiltY;
+            model.rotation.y = baseRotY + headTiltX;
+          } else {
+            // Rückkehr zur neutralen Haltung
+            model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.1);
+            model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY, 0.1);
+          }
+        }
+
+        renderer.render(scene, camera);
+      }
+
+      // === Spracheingabe ===
+      const micBtn = document.getElementById("micBtn");
+      let recognizing = false;
+      let recognition;
+
+      if ("webkitSpeechRecognition" in window) {
+        recognition = new webkitSpeechRecognition();
+        recognition.lang = "de-DE";
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        recognition.onresult = async (event) => {
+          const text = event.results[0][0].transcript;
+          console.log("🎙️ Gesprochen:", text);
+
+          const response = await fetch("/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text }),
+          });
+
+          const data = await response.json();
+          console.log("💬 Antwort:", data.answer);
+          speak(data.answer);
+        };
+
+        recognition.onend = () => (recognizing = false);
+      }
+
+      micBtn.onclick = () => {
+        if (recognizing) {
+          recognition.stop();
+          recognizing = false;
+          micBtn.style.background = "#222";
+        } else {
+          recognition.start();
+          recognizing = true;
+          micBtn.style.background = "#555";
+        }
+      };
+
+      // === Sprachsynthese mit Kopfbewegung (männlich bevorzugt) ===
+      function speak(text) {
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = "de-DE";
+        utter.rate = 1;
+        utter.pitch = 0.8;
+
+        const voices = speechSynthesis.getVoices();
+        utter.voice =
+          voices.find((v) => v.name.includes("Stefan")) ||
+          voices.find((v) => v.lang.startsWith("de")) ||
+          null;
+
+        utter.onstart = () => (talking = true);
+        utter.onend = () => (talking = false);
+
+        speechSynthesis.speak(utter);
+      }
+
+      if (
+        typeof speechSynthesis !== "undefined" &&
+        speechSynthesis.onvoiceschanged !== undefined
+      ) {
+        speechSynthesis.onvoiceschanged = () => {};
+      }
+    </script>
+  </body>
+</html>
