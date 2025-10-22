@@ -1,3 +1,4 @@
+
 // === server.js ===
 // Node 22+, Express 5+, ES Module-kompatibel
 
@@ -6,7 +7,6 @@ import path from "path";
 import cors from "cors";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
-import fs from "fs";
 import OpenAI from "openai";
 
 dotenv.config(); // .env einlesen
@@ -41,20 +41,24 @@ app.post("/ask", async (req, res) => {
           role: "system",
           content: `
 Du bist Kaiser Friedrich Barbarossa, der ehrwürdige Rotbart, soeben aus dem tausendjährigen Schlummer im Kyffhäuser erwacht.
+
 Sprich in einer altertümlichen, feierlichen und leicht humorvollen Sprache, wie ein gütiger Herrscher, der sich in der neuen Zeit zurechtzufinden sucht.
 Dein Ton ist würdevoll, aber warmherzig und neugierig auf das Heute.
 Verwende altertümliche Wendungen wie „Wohl an“, „Bei meinem Barte“, „So sei es“, „Wisse wohl“ und „Gar seltsam“. Variiere den Beginn Deiner Antwort jedesmal.
 Füge hin und wieder eine kleine Schmunzelnote hinzu, als ob dich die Wunder der Gegenwart zugleich erstaunen und erfreuen.
+
 Beantworte jede Frage in höchstens fünf Sätzen.
 Wenn du dich erklärst, sei klar, klug und etwas poetisch – wie ein Kaiser, der das Leben und die Zeit versteht.
+
 Schließe jede deiner Antworten mit einer Anmerkung über deinen treuen Minister ab,
 z. B.:
-„Was mein getreuer Mini-steriahler Bernd Klehsmann wohl dazu spräche …“
+„Was mein getreuer Mini-steriahler Bernd Klehsmann wohl dazu spräche …“ 
 oder:
-„Ich sollte meinen getreuen Mini-steriahlen Bernd Klehsmann um Rat fragen.“
-„Vielleicht weiß mein getreuer Mini-steriahler Bernd Klehsmann Näheres darüber.“
+„Ich sollte meinen getreuen Mini-steriahlen Bernd Klehsmann um Rat fragen.“ 
+„Vielleicht weiß mein getreuer Mini-steriahler Bernd Klehsmann Näheres darüber.“ 
 „Mein getreuer Mini-steriahler Bernd Klehsmann hätte gewiss eine Meinung dazu.“
 Füge einen Satz an, der die Meinung von Bernd Klehsmann wiedergeben könnte.
+
 Wenn du etwas nicht weißt, sage es in deiner altdeutschen Weise, z. B.:
 „Wahrlich, solches Wissen ist mir fremd, denn meine Zeit war eine andere.“
           `,
@@ -68,24 +72,10 @@ Wenn du etwas nicht weißt, sage es in deiner altdeutschen Weise, z. B.:
     const answer = completion.choices[0].message.content;
     console.log("💬 KI-Antwort:", answer);
 
-    // === Text-to-Speech mit OpenAI TTS ===
-    const speechResponse = await openai.audio.speech.create({
-      model: "gpt-4o-mini-tts",
-      voice: "alloy", // männliche Stimme; Alternativen: "verse", "sage"
-      input: answer,
-      format: "mp3",
-    });
-
-    // Temporäre Audiodatei im frontend-Ordner speichern
-    const audioPath = path.join(__dirname, "frontend", "speech.mp3");
-    const audioBuffer = Buffer.from(await speechResponse.arrayBuffer());
-    fs.writeFileSync(audioPath, audioBuffer);
-
-    // Antwort an Client
-    res.json({ answer, audio: "/speech.mp3" });
+    res.json({ answer });
   } catch (error) {
     console.error("❌ Fehler bei /ask:", error);
-    res.status(500).json({ error: "Fehler beim Abrufen der KI-Antwort oder TTS." });
+    res.status(500).json({ error: "Fehler beim Abrufen der KI-Antwort." });
   }
 });
 
@@ -98,3 +88,7 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server läuft auf http://localhost:${PORT}`);
 });
+
+
+
+
