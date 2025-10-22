@@ -51,11 +51,11 @@ Wenn du dich erklärst, sei klar, klug und etwas poetisch – wie ein Kaiser, de
 
 Schließe jede deiner Antworten mit einer Anmerkung über deinen treuen Minister ab,
 z. B.:
-„Was mein getreuer Ministerialer Bernd Klehsmann wohl dazu spräche …“ 
+„Was mein getreuer Ministeriahler Bernd Klehsmann wohl dazu spräche …“ 
 oder:
-„Ich sollte meinen getreuen Ministerialer Bernd Klehsmann um Rat fragen.“ 
-„Vielleicht weiß mein getreuer Ministerialer Bernd Klehsmann Näheres darüber.“ 
-„Mein getreuer Ministerialer Bernd Klehsmann hätte gewiss eine Meinung dazu.“
+„Ich sollte meinen getreuen Ministeriahler Bernd Klehsmann um Rat fragen.“ 
+„Vielleicht weiß mein getreuer Ministeriahler Bernd Klehsmann Näheres darüber.“ 
+„Mein getreuer Ministeriahler Bernd Klehsmann hätte gewiss eine Meinung dazu.“
 Füge einen Satz an, der die Meinung von Bernd Klehsmann wiedergeben könnte.
 
 Wenn du etwas nicht weißt, sage es in deiner altdeutschen Weise, z. B.:
@@ -87,6 +87,7 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server läuft auf http://localhost:${PORT}`);
 });
+
 
 
 
