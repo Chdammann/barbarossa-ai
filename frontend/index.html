@@ -197,7 +197,7 @@
 
         recognition.onend = () => (recognizing = false);
       } else {
-        micNotice.textContent = "🎤 Sprachsteuerung wird in diesem Browser nicht unterstützt (z. B. Firefox).";
+        micNotice.textContent = "🎤 Sprachsteuerung wird in diesem Browser nicht unterstützt (z. B. Firefox). Bitte in anderem Browser öffnen (z.B. Chrome, Samsung)";
       }
 
       micBtn.onclick = () => {
@@ -246,21 +246,12 @@
         speechSynthesis.onvoiceschanged = getMaleVoice;
       }
 
-      // === Begrüßung nach erster Berührung ===
+           // === Begrüßung nach erster Berührung ===
       let greeted = false;
       window.addEventListener("click", () => {
         if (!greeted) {
           greeted = true;
-          speak("Hallo, ich bin Friedrich Barbarossa. Ich habe nun bald tausend Jahre im Kaiserberg geschlafen. Jetzt hast du mich geweckt. Was ist dein Begehr?");
-        }
-      });
-
-      // === Begrüßung nach erster Berührung ===
-      let greeted = false;
-      window.addEventListener("click", () => {
-        if (!greeted) {
-          greeted = true;
-          speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
+          speak("Hallo, ich bin Friedrich Barbarossa. Ich habe nun bald tausend Jahre im Kaiserberg in Lautern geschlafen. Jetzt hast du mich geweckt. Was ist dein Begehr?");
         }
       });
     </script>
