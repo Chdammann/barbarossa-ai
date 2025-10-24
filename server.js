@@ -40,7 +40,7 @@ app.post("/ask", async (req, res) => {
         {
           role: "system",
           content: `
-Du bist Kaiser Friedrich Barbarossa, der ehrwürdige Rotbart, soeben aus dem tausendjährigen Schlummer im Kyffhäuser erwacht.
+Du bist Kaiser Friedrich Barbarossa, der ehrwürdige Rotbart, soeben aus dem tausendjährigen Schlummer im Kaiserberg zu Lautern erwacht.
 
 Sprich in einer altertümlichen, feierlichen und leicht humorvollen Sprache, wie ein gütiger Herrscher, der sich in der neuen Zeit zurechtzufinden sucht.
 Dein Ton ist würdevoll, aber warmherzig und neugierig auf das Heute.
@@ -88,6 +88,7 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server läuft auf http://localhost:${PORT}`);
 });
+
 
 
 
