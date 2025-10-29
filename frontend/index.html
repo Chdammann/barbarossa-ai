@@ -118,10 +118,13 @@
 
     <script>
       let model, talking = false;
+      let baseRotY = Math.PI / 2;
+      let baseRotX = 0;
+      let baseY = 0.6;
 
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 1000);
-      camera.position.set(0, 0, 2);
+      camera.position.set(0, 0, 2.5);
 
       const renderer = new THREE.WebGLRenderer({
         canvas: document.getElementById("avatarCanvas"),
@@ -144,14 +147,9 @@
         (gltf) => {
           model = gltf.scene;
 
-          // 🔄 Avatar um 90° nach links drehen
-          model.rotation.y = Math.PI / 2;
-
-          // 🔼 Avatar etwas höher positionieren
-          model.position.set(0, 0.3, 0);
-
-          // 🔍 Avatar etwas größer skalieren
-          model.scale.set(0.5, 0.5, 0.5);
+          model.rotation.y = baseRotY;
+          model.position.set(0, baseY, 0);
+          model.scale.set(0.7, 0.7, 0.7);
 
           scene.add(model);
           loadingText.style.display = "none";
@@ -160,8 +158,6 @@
         undefined,
         (err) => console.error("Fehler beim Laden des Modells:", err)
       );
-
-      let baseRotY = 0, baseRotX = 0, baseY = 0;
 
       function animate() {
         requestAnimationFrame(animate);
