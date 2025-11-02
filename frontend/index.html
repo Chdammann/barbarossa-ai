@@ -5,81 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Frag Friedrich Barbarossa</title>
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background-color: black;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      flex-direction: column;
-      font-family: "Georgia", serif;
-      color: white;
-    }
-    h1 {
-      position: absolute;
-      top: 20px;
-      text-align: center;
-      width: 100%;
-      font-size: 2em;
-      color: #e0b36b;
-      text-shadow: 0 0 10px #000;
-      letter-spacing: 2px;
-      animation: pulse 3s ease-in-out infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.05); opacity: 0.9; }
-    }
-    #avatarCanvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-    #loading {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: #ccc;
-      font-size: 1.2em;
-      text-align: center;
-    }
-    #micBtn {
-      position: absolute;
-      bottom: 60px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      background: #222;
-      color: white;
-      border: none;
-      font-size: 32px;
-      cursor: pointer;
-      z-index: 10;
-    }
-    #micBtn:hover { background: #444; }
-    #micNotice {
-      position: absolute;
-      bottom: 140px;
-      text-align: center;
-      width: 100%;
-      color: #aaa;
-      font-size: 0.9em;
-    }
-    footer {
-      position: absolute;
-      bottom: 15px;
-      width: 100%;
-      text-align: center;
-      font-size: 0.8em;
-      color: #aaa;
-    }
-    footer a { color: #aaa; text-decoration: none; }
-    footer a:hover { text-decoration: underline; }
+    body { margin:0; overflow:hidden; background-color:black; display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; font-family:"Georgia",serif; color:white; }
+    h1 { position:absolute; top:20px; text-align:center; width:100%; font-size:2em; color:#e0b36b; text-shadow:0 0 10px #000; letter-spacing:2px; animation:pulse 3s ease-in-out infinite; }
+    @keyframes pulse {0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.05);opacity:0.9;}}
+    #avatarCanvas { width:100%; height:100%; display:block; }
+    #loading { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#ccc; font-size:1.2em; text-align:center; }
+    #micBtn { position:absolute; bottom:60px; left:50%; transform:translateX(-50%); width:80px; height:80px; border-radius:50%; background:#222; color:white; border:none; font-size:32px; cursor:pointer; z-index:10; }
+    #micBtn:hover { background:#444; }
+    #micNotice { position:absolute; bottom:140px; text-align:center; width:100%; color:#aaa; font-size:0.9em; }
+    footer { position:absolute; bottom:15px; width:100%; text-align:center; font-size:0.8em; color:#aaa; }
+    footer a { color:#aaa; text-decoration:none; }
+    footer a:hover { text-decoration:underline; }
   </style>
 </head>
 <body>
@@ -94,266 +30,110 @@
     Zum Starten den Kopf antippen, zum Fragen kurz Mikro drücken, nach Ende der Frage nochmal Mikro drücken
   </footer>
 
-  <!-- Three.js (r146) -->
+  <!-- Three.js -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/examples/js/loaders/GLTFLoader.js"></script>
 
   <script>
-    let model, talking = false;
-    let baseRotY = 0, baseRotX = 0, baseY = 0;
+    let model, talking=false;
+    let baseRotY=0, baseRotX=0, baseY=0;
+    let jawDict=null, jawInfluences=null, jawIndex=null;
 
-    // Morph target refs
-    let jawDict = null;
-    let jawInfluences = null;
-    let jawIndex = null;
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({
-      canvas: document.getElementById("avatarCanvas"),
-      antialias: true,
-    });
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    const scene=new THREE.Scene();
+    const camera=new THREE.PerspectiveCamera(30,window.innerWidth/window.innerHeight,0.1,1000);
+    const renderer=new THREE.WebGLRenderer({canvas:document.getElementById("avatarCanvas"),antialias:true});
+    renderer.setSize(window.innerWidth,window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setClearColor(0x000000);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-    dirLight.position.set(1, 1, 2);
-    scene.add(dirLight);
-    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-    const frontLight = new THREE.PointLight(0xffffff, 0.8);
-    frontLight.position.set(0, 0.5, 2);
-    scene.add(frontLight);
+    const dirLight=new THREE.DirectionalLight(0xffffff,2); dirLight.position.set(1,1,2); scene.add(dirLight);
+    scene.add(new THREE.AmbientLight(0xffffff,0.8));
+    const frontLight=new THREE.PointLight(0xffffff,0.8); frontLight.position.set(0,0.5,2); scene.add(frontLight);
 
-    const loader = new THREE.GLTFLoader();
-    const loadingText = document.getElementById("loading");
+    const loader=new THREE.GLTFLoader();
+    const loadingText=document.getElementById("loading");
 
-    loader.load(
-      "./avatar.glb",
-      (gltf) => {
-        model = gltf.scene;
-        scene.add(model);
+    loader.load("./avatar.glb",(gltf)=>{
+      model=gltf.scene; scene.add(model);
 
-        // Morph Targets vorbereiten
-        model.traverse((child) => {
-          if (child.isMesh && child.morphTargetDictionary) {
-            jawDict = child.morphTargetDictionary;
-            jawInfluences = child.morphTargetInfluences;
-            if ("jawOpen" in jawDict) {
-              jawIndex = jawDict["jawOpen"];
-            }
-          }
-        });
+      // Morph Targets
+      model.traverse((child)=>{
+        if(child.isMesh && child.morphTargetDictionary){
+          jawDict=child.morphTargetDictionary;
+          jawInfluences=child.morphTargetInfluences;
+          if("jawOpen" in jawDict) jawIndex=jawDict["jawOpen"];
+        }
+      });
 
-        // === Automatisch zentrieren und frontal ausrichten ===
-        const box = new THREE.Box3().setFromObject(model);
-        const size = box.getSize(new THREE.Vector3());
-        const center = box.getCenter(new THREE.Vector3());
+      // Bounding Box Fit + Frontal
+      const box=new THREE.Box3().setFromObject(model);
+      const size=box.getSize(new THREE.Vector3());
+      const center=box.getCenter(new THREE.Vector3());
+      model.position.sub(center);
+      model.rotation.set(0,-Math.PI/2,0); // Kopf frontal ausrichten
 
-        // Modell auf Ursprung verschieben (echtes Zentrieren)
-        model.position.sub(center);
+      const maxDim=Math.max(size.x,size.y,size.z);
+      const fov=camera.fov*(Math.PI/180);
+      let cameraZ=Math.abs(maxDim/2/Math.tan(fov/2));
+      cameraZ*=1.4;
+      camera.position.set(0,0,cameraZ);
+      camera.lookAt(0,0,0);
 
-        // Frontal ausrichten (zur Kamera blicken)
-        model.rotation.set(0, 0, 0);
+      baseRotY=model.rotation.y; baseRotX=model.rotation.x; baseY=model.position.y;
+      loadingText.style.display="none";
+      animate();
+    });
 
-        // Kamera so setzen, dass der Avatar ins Bild passt
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const fov = camera.fov * (Math.PI / 180);
-        let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-        cameraZ *= 1.4; // etwas Abstand
-        camera.position.set(0, 0, cameraZ);
-        camera.lookAt(0, 0, 0);
-
-        // Basispunkte für Idle-Bewegung speichern
-        baseRotY = model.rotation.y;
-        baseRotX = model.rotation.x;
-        baseY = model.position.y;
-
-        loadingText.style.display = "none";
-        animate();
-      },
-      undefined,
-      (err) => console.error("Fehler beim Laden des Modells:", err)
-    );
-
-    function animate() {
+    function animate(){
       requestAnimationFrame(animate);
-      if (model) {
-        if (talking) {
-          model.rotation.y = baseRotY + Math.sin(Date.now() * 0.0015) * 0.04;
-          model.rotation.x = baseRotX + Math.sin(Date.now() * 0.0019) * 0.025;
-          model.position.y = baseY + Math.sin(Date.now() * 0.01) * 0.004;
-        } else {
-          model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY, 0.05);
-          model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.05);
-          model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.05);
+      if(model){
+        if(talking){
+          model.rotation.y=baseRotY+Math.sin(Date.now()*0.0015)*0.04;
+          model.rotation.x=baseRotX+Math.sin(Date.now()*0.0019)*0.025;
+          model.position.y=baseY+Math.sin(Date.now()*0.01)*0.004;
+        }else{
+          model.rotation.y=THREE.MathUtils.lerp(model.rotation.y,baseRotY,0.05);
+          model.rotation.x=THREE.MathUtils.lerp(model.rotation.x,baseRotX,0.05);
+          model.position.y=THREE.MathUtils.lerp(model.position.y,baseY,0.05);
         }
       }
-      renderer.render(scene, camera);
+      renderer.render(scene,camera);
     }
 
-    // === JawOpen Driver (text- und timingbasiert) ===
-    let jawDriverRAF = null;
-
-    function buildPulseSchedule(text, rate) {
-      const durationEst = Math.max(0.8, text.length / (12 * rate));
-      const pulses = [];
-      const vowels = "aäeéiíoöuüyAUOÄÖÜaeiou";
-      const baseInterval = 0.09;
-      let t = 0;
-      for (let i = 0; i < text.length; i++) {
-        const ch = text[i];
-        const strength = vowels.includes(ch) ? 1.0 : 0.6;
-        pulses.push({ time: t, strength });
-        t += baseInterval * (ch === " " ? 1.4 : 1.0);
+    // === JawOpen Driver ===
+    let jawDriverRAF=null;
+    function buildPulseSchedule(text,rate){
+      const durationEst=Math.max(0.8,text.length/(12*rate));
+      const pulses=[]; const vowels="aäeéiíoöuüyAUOÄÖÜaeiou";
+      const baseInterval=0.09; let t=0;
+      for(let i=0;i<text.length;i++){
+        const ch=text[i]; const strength=vowels.includes(ch)?1.0:0.6;
+        pulses.push({time:t,strength});
+        t+=baseInterval*(ch===" "?1.4:1.0);
       }
-      const scale = durationEst / (t || 1);
-      for (const p of pulses) p.time *= scale;
-      return { pulses, duration: durationEst };
+      const scale=durationEst/(t||1); for(const p of pulses) p.time*=scale;
+      return {pulses,duration:durationEst};
     }
-
-    function startJawDriver(text, rate = 1.0) {
-      if (jawDriverRAF) cancelAnimationFrame(jawDriverRAF);
-
-      const { pulses, duration } = buildPulseSchedule(text, rate);
-      const start = performance.now();
-      const pulseWidth = 0.08;
-      const base = 0.03;
-      const maxOpen = 0.55;
-
-      function envelopeAt(t) {
-        let e = 0;
-        for (const p of pulses) {
-          const dt = Math.abs(t - p.time);
-          if (dt < pulseWidth) e += (1 - dt / pulseWidth) * p.strength;
-        }
-        e += 0.15 * (0.5 + 0.5 * Math.sin(t * 6.0));
-        return Math.min(1.0, e);
-      }
-
-      function step() {
-        const now = performance.now();
-        const t = (now - start) / 1000;
-        const active = talking && jawInfluences && jawIndex !== null;
-
-        if (active) {
-          const env = envelopeAt(Math.min(t, duration));
-          const target = THREE.MathUtils.clamp(base + env * maxOpen, 0, 1);
-          const current = jawInfluences[jawIndex] || 0;
-          jawInfluences[jawIndex] = THREE.MathUtils.lerp(current, target, 0.5);
-          jawDriverRAF = requestAnimationFrame(step);
-        } else {
-          // bei Ende wird in stopJawDriver sanft geschlossen
-        }
-      }
-
+    function startJawDriver(text,rate=1.0){
+      if(jawDriverRAF) cancelAnimationFrame(jawDriverRAF);
+      const {pulses,duration}=buildPulseSchedule(text,rate);
+      const start=performance.now(); const pulseWidth=0.08, base=0.03, maxOpen=0.55;
+      function envelopeAt(t){let e=0; for(const p of pulses){const dt=Math.abs(t-p.time); if(dt<pulseWidth) e+=(1-dt/pulseWidth)*p.strength;} e+=0.15*(0.5+0.5*Math.sin(t*6.0)); return Math.min(1.0,e);}
+      function step(){const now=performance.now(); const t=(now-start)/1000; if(talking&&jawInfluences&&jawIndex!==null){const env=envelopeAt(Math.min(t,duration)); const target=THREE.MathUtils.clamp(base+env*maxOpen,0,1); const current=jawInfluences[jawIndex]||0; jawInfluences[jawIndex]=THREE.MathUtils.lerp(current,target,0.5); jawDriverRAF=requestAnimationFrame(step);} }
       step();
     }
+    function stopJawDriver(){if(jawDriverRAF) cancelAnimationFrame(jawDriverRAF); jawDriverRAF=null; if(jawInfluences&&jawIndex!==null){const closer=()=>{const current=jawInfluences[jawIndex]||0; const next=THREE.MathUtils.lerp(current,0,0.3); jawInfluences[jawIndex]=next; if(Math.abs(next)>0.001) requestAnimationFrame(closer);}; closer();}}
 
-    function stopJawDriver() {
-      if (jawDriverRAF) cancelAnimationFrame(jawDriverRAF);
-      jawDriverRAF = null;
-      if (jawInfluences && jawIndex !== null) {
-        const closer = () => {
-          const current = jawInfluences[jawIndex] || 0;
-          const next = THREE.MathUtils.lerp(current, 0, 0.3);
-          jawInfluences[jawIndex] = next;
-          if (Math.abs(next) > 0.001) requestAnimationFrame(closer);
-        };
-        closer();
-      }
-    }
+    // === Sprachsteuerung ===
+    const micBtn=document.getElementById("micBtn");
+    const micNotice=document.getElementById("micNotice");
+    let recognizing=false; let recognition;
 
-    // === Sprachsteuerung (original, funktionsfähig) ===
-    const micBtn = document.getElementById("micBtn");
-    const micNotice = document.getElementById("micNotice");
-    let recognizing = false;
-    let recognition;
+    if("webkitSpeechRecognition" in window){
+      recognition=new webkitSpeechRecognition();
+      recognition.lang="de-DE";
+      recognition.continuous=false;
+      recognition.interimResults=false;
 
-    if ("webkitSpeechRecognition" in window) {
-      recognition = new webkitSpeechRecognition();
-      recognition.lang = "de-DE";
-      recognition.continuous = false;
-      recognition.interimResults = false;
-
-      recognition.onresult = async (event) => {
-        const text = event.results[0][0].transcript;
-        console.log("🎙️ Gesprochen:", text);
-        const response = await fetch("/ask", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text }),
-        });
-        const data = await response.json();
-        speak(data.answer);
-      };
-
-      recognition.onend = () => (recognizing = false);
-    } else {
-      micNotice.textContent = "🎤 Sprachsteuerung wird in diesem Browser nicht unterstützt, bitte anderen Browser verwenden.";
-    }
-
-    micBtn.onclick = () => {
-      if (recognition) {
-        if (recognizing) {
-          recognition.stop();
-          recognizing = false;
-          micBtn.style.background = "#222";
-        } else {
-          recognition.start();
-          recognizing = true;
-          micBtn.style.background = "#555";
-        }
-      }
-    };
-
-    // === Männliche Stimme erzwingen ===
-    function getMaleVoice() {
-      const voices = speechSynthesis.getVoices();
-      return (
-        voices.find(v => /male|mann|stefan|markus|male/i.test(v.name)) ||
-        voices.find(v => v.lang.startsWith("de")) ||
-        voices[0]
-      );
-    }
-
-    function speak(text) {
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = "de-DE";
-      utter.rate = 0.95;
-      utter.pitch = 0.6;
-      utter.voice = getMaleVoice();
-
-      utter.onstart = () => {
-        talking = true;
-        startJawDriver(text, utter.rate);
-      };
-      utter.onend = () => {
-        talking = false;
-        stopJawDriver();
-      };
-      speechSynthesis.speak(utter);
-    }
-
-    if (typeof speechSynthesis !== "undefined" && speechSynthesis.onvoiceschanged !== undefined) {
-      speechSynthesis.onvoiceschanged = getMaleVoice;
-    }
-
-    // === Begrüßung nach erster Berührung ===
-    let greeted = false;
-    window.addEventListener("click", () => {
-      if (!greeted) {
-        greeted = true;
-        speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
-      }
-    });
-
-    // Resize-Handling
-    window.addEventListener("resize", () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-  </script>
-</body>
-</html>
+      recognition.onresult=async (event)=>{
+        const text=event.results[0][0].
