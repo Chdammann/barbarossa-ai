@@ -58,7 +58,8 @@
         left: 50%;
         transform: translateX(-50%);
         width: 80px;
-        height: 80px;
+        height: 80%;
+        max-height: 80px;
         border-radius: 50%;
         background: #222;
         color: white;
@@ -109,7 +110,8 @@
     <div id="micNotice"></div>
 
     <footer>
-      © 2025 <a href="https://christoph-dammann.de" target="_blank">Dr. Christoph Dammann</a><br>Zum Starten den Kopf antippen, zum Fragen kurz Mikro drücken, nach Ende der Frage nochmal Mikro drücken
+      © 2025 <a href="https://christoph-dammann.de" target="_blank">Dr. Christoph Dammann</a><br>
+      Zum Starten den Kopf antippen, zum Fragen kurz Mikro drücken, nach Ende der Frage nochmal Mikro drücken
     </footer>
 
     <!-- Three.js (r146) -->
@@ -122,8 +124,10 @@
       let baseRotX = 0;
       let baseY = 0.6;
 
+      // Morph target refs
       let jawDict = null;
       let jawInfluences = null;
+      let jawIndex = null;
 
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -168,6 +172,9 @@
             if (child.isMesh && child.morphTargetDictionary) {
               jawDict = child.morphTargetDictionary;
               jawInfluences = child.morphTargetInfluences;
+              if ("jawOpen" in jawDict) {
+                jawIndex = jawDict["jawOpen"];
+              }
             }
           });
 
@@ -247,21 +254,129 @@
         );
       }
 
+      // === JawOpen Driver (text- und timingbasiert) ===
+      let jawDriverRAF = null;
+
+      function buildPulseSchedule(text, rate) {
+        // Schätzung der Sprechdauer: ~12 Zeichen pro Sekunde (angepasst mit rate)
+        const durationEst = Math.max(0.8, text.length / (12 * rate));
+        const pulses = [];
+        const vowels = "aäeéiíoöuüyAUOÄÖÜaeiou";
+        // Pulsabstand ca. 90ms, stärkere Pulse bei Vokalen
+        const baseInterval = 0.09;
+        let t = 0;
+        for (let i = 0; i < text.length; i++) {
+          const ch = text[i];
+          const strength = vowels.includes(ch) ? 1.0 : 0.6;
+          pulses.push({ time: t, strength });
+          t += baseInterval * (ch === " " ? 1.4 : 1.0);
+        }
+        // Normiere auf geschätzte Dauer
+        const scale = durationEst / (t || 1);
+        for (const p of pulses) p.time *= scale;
+        return { pulses, duration: durationEst };
+      }
+
+      function startJawDriver(text, rate = 1.0) {
+        if (jawDriverRAF) cancelAnimationFrame(jawDriverRAF);
+
+        const { pulses, duration } = buildPulseSchedule(text, rate);
+        const start = performance.now();
+        const pulseWidth = 0.08; // Dauer eines Pulses
+        const base = 0.03;       // Minimalöffnung
+        const maxOpen = 0.55;    // Maximalöffnung
+
+        function envelopeAt(t) {
+          // Summe der Dreieckspulse um aktuelle Zeit
+          let e = 0;
+          for (const p of pulses) {
+            const dt = Math.abs(t - p.time);
+            if (dt < pulseWidth) {
+              e += (1 - dt / pulseWidth) * p.strength;
+            }
+          }
+          // leichte zusätzliche Modulation für Natürlichkeit
+          e += 0.15 * (0.5 + 0.5 * Math.sin(t * 6.0));
+          return Math.min(1.0, e);
+        }
+
+        function step() {
+          const now = performance.now();
+          const t = (now - start) / 1000;
+          const active = talking && jawInfluences && jawIndex !== null;
+
+          if (active) {
+            const env = envelopeAt(Math.min(t, duration));
+            const target = THREE.MathUtils.clamp(base + env * maxOpen, 0, 1);
+            // Sanftes Nachführen
+            const current = jawInfluences[jawIndex] || 0;
+            jawInfluences[jawIndex] = THREE.MathUtils.lerp(current, target, 0.5);
+            jawDriverRAF = requestAnimationFrame(step);
+          } else {
+            // Sanft schließen
+            if (jawInfluences && jawIndex !== null) {
+              const current = jawInfluences[jawIndex] || 0;
+              jawInfluences[jawIndex] = THREE.MathUtils.lerp(current, 0, 0.35);
+            }
+            jawDriverRAF = requestAnimationFrame(() => {});
+          }
+        }
+
+        step();
+      }
+
+      function stopJawDriver() {
+        if (jawDriverRAF) cancelAnimationFrame(jawDriverRAF);
+        jawDriverRAF = null;
+        if (jawInfluences && jawIndex !== null) {
+          // sanft zurück zur Ruhe
+          const closer = () => {
+            const current = jawInfluences[jawIndex] || 0;
+            const next = THREE.MathUtils.lerp(current, 0, 0.3);
+            jawInfluences[jawIndex] = next;
+            if (Math.abs(next) > 0.001) requestAnimationFrame(closer);
+          };
+          closer();
+        }
+      }
+
       function speak(text) {
         const utter = new SpeechSynthesisUtterance(text);
         utter.lang = "de-DE";
         utter.rate = 0.95;
         utter.pitch = 0.6;
         utter.voice = getMaleVoice();
+
         utter.onstart = () => {
           talking = true;
-          startJawAnimation();
+          startJawDriver(text, utter.rate);
         };
         utter.onend = () => {
           talking = false;
-          stopJawAnimation();
+          stopJawDriver();
         };
         speechSynthesis.speak(utter);
       }
 
-      if
+      if (typeof speechSynthesis !== "undefined" && speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = getMaleVoice;
+      }
+
+      // === Begrüßung nach erster Berührung ===
+      let greeted = false;
+      window.addEventListener("click", () => {
+        if (!greeted) {
+          greeted = true;
+          speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
+        }
+      });
+
+      // Resize-Handling
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    </script>
+  </body>
+</html>
