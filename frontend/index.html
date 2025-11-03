@@ -104,7 +104,6 @@
     let baseRotX = 0;
     let baseY = 0.6;
 
-    // jawOpen refs
     let jawDict = null;
     let jawInfluences = null;
     let jawIndex = null;
@@ -138,6 +137,31 @@
         model = gltf.scene;
         scene.add(model);
 
+        // === Dunkel-Goldener Mundshader ===
+        model.traverse((child) => {
+          if (child.isMesh && child.material) {
+            child.material.side = THREE.DoubleSide;
+            child.material.onBeforeCompile = (shader) => {
+              shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <output_fragment>',
+                `
+                // Farbverlauf von dunklem zu hellem Gold (innen sichtbar)
+                if (!gl_FrontFacing) {
+                  float v = (vViewPosition.y + 0.5) * 0.5; // einfache vertikale Position
+                  vec3 topColor = vec3(0.3, 0.22, 0.05);  // dunkles Gold (oben)
+                  vec3 bottomColor = vec3(0.8, 0.6, 0.15); // helleres Gold (unten)
+                  vec3 gradColor = mix(topColor, bottomColor, clamp(v, 0.0, 1.0));
+                  gl_FragColor = vec4(gradColor, 1.0);
+                }
+                #include <output_fragment>
+                `
+              );
+            };
+            child.material.needsUpdate = true;
+          }
+        });
+        // === Ende Mundshader ===
+
         // jawOpen finden
         model.traverse((child) => {
           if (child.isMesh && child.morphTargetDictionary) {
@@ -149,27 +173,23 @@
           }
         });
 
-        // Automatisch zentrieren und frontal ausrichten
+        // Zentrieren
         const box = new THREE.Box3().setFromObject(model);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
-
-        // Modell auf Ursprung verschieben (echtes Zentrieren)
         model.position.sub(center);
 
-        // Frontal zur Kamera ausrichten (falls GLB seitlich exportiert war)
-        // Deine funktionierende Basis drehte um -Math.PI/2. Wir erzwingen hier bewusst frontal:
+        // Ausrichtung
         model.rotation.set(0, -Math.PI / 2, 0);
 
-        // Kamera passend setzen
+        // Kamera
         const maxDim = Math.max(size.x, size.y, size.z);
         const fov = camera.fov * (Math.PI / 180);
         let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-        cameraZ *= 1.4; // etwas Abstand
+        cameraZ *= 1.4;
         camera.position.set(0, 0, cameraZ);
         camera.lookAt(0, 0, 0);
 
-        // Basispunkte für Idle-Bewegung speichern (deine Originalwerte)
         baseRotY = model.rotation.y;
         baseRotX = model.rotation.x;
         baseY = model.position.y;
@@ -197,7 +217,7 @@
       renderer.render(scene, camera);
     }
 
-    // === Sprachsteuerung (unverändert belassen) ===
+    // Sprachsteuerung
     const micBtn = document.getElementById("micBtn");
     const micNotice = document.getElementById("micNotice");
     let recognizing = false;
@@ -240,7 +260,6 @@
       }
     };
 
-    // === Männliche Stimme erzwingen (unverändert) ===
     function getMaleVoice() {
       const voices = speechSynthesis.getVoices();
       return (
@@ -250,11 +269,9 @@
       );
     }
 
-    // === jawOpen-Animation beim Sprechen (neu) ===
     let jawDriverRAF = null;
 
     function buildPulseSchedule(text, rate) {
-      // Schätzung der Sprechdauer: ~12 Zeichen pro Sekunde
       const durationEst = Math.max(0.8, text.length / (12 * rate));
       const pulses = [];
       const vowels = "aäeéiíoöuüyAUOÄÖÜaeiou";
@@ -285,7 +302,6 @@
           const dt = Math.abs(t - p.time);
           if (dt < pulseWidth) e += (1 - dt / pulseWidth) * p.strength;
         }
-        // leichte Modulation für Natürlichkeit
         e += 0.15 * (0.5 + 0.5 * Math.sin(t * 6.0));
         return Math.min(1.0, e);
       }
@@ -294,7 +310,6 @@
         const now = performance.now();
         const t = (now - start) / 1000;
         const active = talking && jawInfluences && jawIndex !== null;
-
         if (active) {
           const env = envelopeAt(Math.min(t, duration));
           const target = THREE.MathUtils.clamp(base + env * maxOpen, 0, 1);
@@ -303,7 +318,6 @@
           jawDriverRAF = requestAnimationFrame(step);
         }
       }
-
       step();
     }
 
@@ -327,7 +341,6 @@
       utter.rate = 0.95;
       utter.pitch = 0.6;
       utter.voice = getMaleVoice();
-
       utter.onstart = () => {
         talking = true;
         startJawDriver(text, utter.rate);
@@ -343,7 +356,6 @@
       speechSynthesis.onvoiceschanged = getMaleVoice;
     }
 
-    // === Begrüßung nach erster Berührung (unverändert) ===
     let greeted = false;
     window.addEventListener("click", () => {
       if (!greeted) {
@@ -352,7 +364,6 @@
       }
     });
 
-    // Resize-Handling
     window.addEventListener("resize", () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
