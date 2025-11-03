@@ -94,7 +94,6 @@
     Zum Starten den Kopf antippen, zum Fragen kurz Mikro drücken, nach Ende der Frage nochmal Mikro drücken
   </footer>
 
-  <!-- Three.js (r146) -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/examples/js/loaders/GLTFLoader.js"></script>
 
@@ -103,10 +102,7 @@
     let baseRotY = Math.PI / 2;
     let baseRotX = 0;
     let baseY = 0.6;
-
-    let jawDict = null;
-    let jawInfluences = null;
-    let jawIndex = null;
+    let jawDict = null, jawInfluences = null, jawIndex = null;
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -132,88 +128,58 @@
     const loadingText = document.getElementById("loading");
 
     loader.load(
-  "./avatar.glb",
-  (gltf) => {
-    model = gltf.scene;
-    scene.add(model);
+      "./avatar.glb",
+      (gltf) => {
+        model = gltf.scene;
+        scene.add(model);
 
-    // === Dunkel-goldener Mundshader (Rückseiten einfärben) ===
-    model.traverse((child) => {
-      if (child.isMesh && child.material) {
-        child.material.side = THREE.DoubleSide;
-        child.material.onBeforeCompile = (shader) => {
-          shader.fragmentShader = shader.fragmentShader.replace(
-            '#include <output_fragment>',
-            `
-            // Dunkler goldener Verlauf für Rückseiten (Mundinnenseite)
-            if (!gl_FrontFacing) {
-              // simulierte vertikale Verlaufskomponente
-              float v = clamp((normalize(vViewPosition).y + 1.0) * 0.5, 0.0, 1.0);
-              vec3 topColor = vec3(0.2, 0.15, 0.03);   // sehr dunkles Gold (oben)
-              vec3 bottomColor = vec3(0.6, 0.45, 0.1); // etwas helleres Gold (unten)
-              vec3 gradColor = mix(topColor, bottomColor, v);
-              gl_FragColor.rgb = gradColor;
-            }
-            #include <output_fragment>
-            `
-          );
-        };
-        child.material.needsUpdate = true;
-      }
-    });
-    // === Ende Mundshader ===
-
-    // Automatische Zentrierung usw. (dein Restcode bleibt unverändert)
-    const box = new THREE.Box3().setFromObject(model);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    model.position.sub(center);
-    model.rotation.set(0, -Math.PI / 2, 0);
-
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const fov = camera.fov * (Math.PI / 180);
-    let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-    cameraZ *= 1.4;
-    camera.position.set(0, 0, cameraZ);
-    camera.lookAt(0, 0, 0);
-
-    baseRotY = model.rotation.y;
-    baseRotX = model.rotation.x;
-    baseY = model.position.y + 0.05; // <-- hebt den Kopf leicht an
-
-    loadingText.style.display = "none";
-    animate();
-  },
-  undefined,
-  (err) => console.error("Fehler beim Laden des Modells:", err)
-);
-
-
-        // jawOpen finden
+        // === Dunkel-goldener metallischer Mundshader ===
         model.traverse((child) => {
+          if (child.isMesh && child.material) {
+            child.material.side = THREE.DoubleSide;
+
+            child.material.onBeforeCompile = (shader) => {
+              shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <output_fragment>',
+                `
+                if (!gl_FrontFacing) {
+                  float v = clamp((normalize(vViewPosition).y + 1.0) * 0.5, 0.0, 1.0);
+                  vec3 topColor = vec3(0.2, 0.15, 0.03);
+                  vec3 bottomColor = vec3(0.6, 0.45, 0.1);
+                  vec3 gradColor = mix(topColor, bottomColor, v);
+                  gl_FragColor = vec4(gradColor, 1.0);
+                }
+                #include <output_fragment>
+                `
+              );
+            };
+
+            // Metalleffekt
+            child.material.metalness = 1.0;
+            child.material.roughness = 0.3;
+            child.material.needsUpdate = true;
+          }
+
+          // jawOpen finden
           if (child.isMesh && child.morphTargetDictionary) {
             jawDict = child.morphTargetDictionary;
             jawInfluences = child.morphTargetInfluences;
-            if ("jawOpen" in jawDict) {
-              jawIndex = jawDict["jawOpen"];
-            }
+            if ("jawOpen" in jawDict) jawIndex = jawDict["jawOpen"];
           }
         });
+        // === Ende Mundshader ===
 
-        // Zentrieren
+        // Modell zentrieren und leicht anheben
         const box = new THREE.Box3().setFromObject(model);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
         model.position.sub(center);
-
-        // Ausrichtung
+        model.position.y += 0.05;
         model.rotation.set(0, -Math.PI / 2, 0);
 
-        // Kamera
         const maxDim = Math.max(size.x, size.y, size.z);
         const fov = camera.fov * (Math.PI / 180);
-        let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-        cameraZ *= 1.4;
+        let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.4;
         camera.position.set(0, 0, cameraZ);
         camera.lookAt(0, 0, 0);
 
@@ -244,7 +210,7 @@
       renderer.render(scene, camera);
     }
 
-    // Sprachsteuerung
+    // === Sprachsteuerung ===
     const micBtn = document.getElementById("micBtn");
     const micNotice = document.getElementById("micNotice");
     let recognizing = false;
@@ -255,7 +221,6 @@
       recognition.lang = "de-DE";
       recognition.continuous = false;
       recognition.interimResults = false;
-
       recognition.onresult = async (event) => {
         const text = event.results[0][0].transcript;
         console.log("🎙️ Gesprochen:", text);
@@ -267,23 +232,21 @@
         const data = await response.json();
         speak(data.answer);
       };
-
       recognition.onend = () => (recognizing = false);
     } else {
-      micNotice.textContent = "🎤 Sprachsteuerung wird in diesem Browser nicht unterstützt, bitte anderen Browser verwenden.";
+      micNotice.textContent = "🎤 Sprachsteuerung wird in diesem Browser nicht unterstützt.";
     }
 
     micBtn.onclick = () => {
-      if (recognition) {
-        if (recognizing) {
-          recognition.stop();
-          recognizing = false;
-          micBtn.style.background = "#222";
-        } else {
-          recognition.start();
-          recognizing = true;
-          micBtn.style.background = "#555";
-        }
+      if (!recognition) return;
+      if (recognizing) {
+        recognition.stop();
+        recognizing = false;
+        micBtn.style.background = "#222";
+      } else {
+        recognition.start();
+        recognizing = true;
+        micBtn.style.background = "#555";
       }
     };
 
@@ -304,8 +267,7 @@
       const vowels = "aäeéiíoöuüyAUOÄÖÜaeiou";
       const baseInterval = 0.09;
       let t = 0;
-      for (let i = 0; i < text.length; i++) {
-        const ch = text[i];
+      for (let ch of text) {
         const strength = vowels.includes(ch) ? 1.0 : 0.6;
         pulses.push({ time: t, strength });
         t += baseInterval * (ch === " " ? 1.4 : 1.0);
@@ -368,14 +330,8 @@
       utter.rate = 0.95;
       utter.pitch = 0.6;
       utter.voice = getMaleVoice();
-      utter.onstart = () => {
-        talking = true;
-        startJawDriver(text, utter.rate);
-      };
-      utter.onend = () => {
-        talking = false;
-        stopJawDriver();
-      };
+      utter.onstart = () => { talking = true; startJawDriver(text, utter.rate); };
+      utter.onend = () => { talking = false; stopJawDriver(); };
       speechSynthesis.speak(utter);
     }
 
