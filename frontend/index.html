@@ -141,38 +141,32 @@
 
     scene.add(model);
 
-    // === Einfacher Mundinnenraum (dunkle Kugel im Kopf) ===
-const mouthGeometry = new THREE.SphereGeometry(0.05, 32, 32);
-const mouthMaterial = new THREE.MeshStandardMaterial({
-  color: 0x222222, // sehr dunkles Grau
-  roughness: 0.7,
-  metalness: 0.2
-});
-const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
+    // === Notlösung: dunkler Mundinnenraum (Kugel im Kopf) ===
+(function addMouthInterior() {
+  // Berechne Modellgröße für die Kugel
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const radius = Math.max(size.x, size.y, size.z) * 0.4; // passt ins Innere
 
-// Position leicht unterhalb der Kopfmitte anpassen (x, y, z variieren je nach Modell)
-mouth.position.set(0, 0.05, 0.03);
+  // Geometrie + Material
+  const geom = new THREE.SphereGeometry(radius, 32, 16);
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0x201000,    // dunkles Gold/Dunkelbraun
+    side: THREE.BackSide // von innen sichtbar
+  });
 
-// Mundkugel dem Modell hinzufügen
-model.add(mouth);
-        
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const fov = camera.fov * (Math.PI / 180);
-        let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-        cameraZ *= 1.4;
-        camera.position.set(0, 0, cameraZ);
-        camera.lookAt(0, 0, 0);
+  const innerSphere = new THREE.Mesh(geom, mat);
 
-        baseRotY = model.rotation.y;
-        baseRotX = model.rotation.x;
-        baseY = model.position.y + 0.05; // leichter Versatz nach oben
+  // Position leicht verschieben, damit die Kugel hinter den Lippen sitzt
+  innerSphere.position.set(0, 0, 0); // ggf. leicht anpassen
 
-        loadingText.style.display = "none";
-        animate();
-      },
-      undefined,
-      (err) => console.error("Fehler beim Laden des Modells:", err)
-    );
+  // renderOrder: Kopf > Kugel
+  innerSphere.renderOrder = 0;
+  model.traverse(c => { if(c.isMesh) c.renderOrder = 1; });
+
+  // Kugel dem Modell hinzufügen (rotieren/verschieben sich mit dem Kopf)
+  model.add(innerSphere);
+})();
 
     function animate() {
       requestAnimationFrame(animate);
