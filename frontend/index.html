@@ -109,7 +109,7 @@
     let jawIndex = null;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
+    
     const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 0, 2.8);
 
@@ -120,14 +120,7 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setClearColor(0x000000);
-    // === Dunkler Hintergrund statt Weiß im Mund ===
-const mouthBackground = new THREE.Mesh(
-  new THREE.SphereGeometry(0.15, 16, 16),
-  new THREE.MeshBasicMaterial({ color: 0x201000 }) // dunkles Goldbraun
-);
-mouthBackground.position.set(0, 0, -0.05); // leicht hinter dem Kopf
-scene.add(mouthBackground);
-// === Ende Hintergrund-Fix ===
+    
     const light = new THREE.DirectionalLight(0xffffff, 2);
     light.position.set(1, 1, 2);
     scene.add(light);
@@ -144,20 +137,7 @@ scene.add(mouthBackground);
   (gltf) => {
     model = gltf.scene;
 
-    // Ersetze weißes Material durch dunkles Gold
-    model.traverse((node) => {
-      if (node.isMesh && node.material && node.material.color) {
-        const color = node.material.color;
-        if (color.r === 1 && color.g === 1 && color.b === 1) {
-          node.material = new THREE.MeshStandardMaterial({
-            color: new THREE.Color(0x4b3b1f), // dunkles Gold
-            metalness: 1.0,
-            roughness: 0.3,
-            side: THREE.DoubleSide
-          });
-        }
-      }
-    });
+    
 
     scene.add(model);
 
@@ -178,7 +158,34 @@ scene.add(mouthBackground);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
         model.position.sub(center);
-        model.rotation.set(0, -Math.PI / 2, 0);
+// === Mouth interior "dunkle Kugel" (reliable, render behind head) ===
+// Place this after you've positioned/rotated/scaled the model, and after computing `size`/`maxDim`.
+(function addMouthInterior() {
+  // Größe der Kugel: etwas kleiner als der Kopf, damit sie innen sitzt
+  const radius = Math.max(size.x, size.y, size.z) * 0.45;
+
+  // Wir verwenden BackSide, damit die Innenseite der Kugel sichtbar ist
+  const geom = new THREE.SphereGeometry(radius, 32, 16);
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0x201000,     // dunkles Goldbraun — anpassen nach Geschmack
+    side: THREE.BackSide // Rendern von innen (wir schauen aus dem Mund hinein)
+  });
+
+  const innerSphere = new THREE.Mesh(geom, mat);
+
+  // WICHTIG: renderOrder so setzen, dass die Kugel zuerst gezeichnet wird
+  // und der Kopf danach — dadurch werden Kopf-Polygone die Kugel überdecken,
+  // aber durch Mundöffnungen sieht man die Kugel.
+  innerSphere.renderOrder = 0;
+  model.traverse((c) => { if (c.isMesh) c.renderOrder = 1; });
+
+  // Kugel als Kind des Modells hinzufügen: bewegt/rotiert mit dem Kopf
+  model.add(innerSphere);
+
+  // kleine Offset-Anpassung, falls die Kugel zu weit vorne/hinten sichtbar ist:
+  // Du kannst die Werte in kleinen Schritten anpassen (z.B. z=-0.02 oder y=-0.01).
+  innerSphere.position.set(0, 0, 0); // in Modell-Koordinaten; meist passend
+})();        model.rotation.set(0, -Math.PI / 2, 0);
 
         const maxDim = Math.max(size.x, size.y, size.z);
         const fov = camera.fov * (Math.PI / 180);
