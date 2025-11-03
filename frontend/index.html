@@ -141,52 +141,21 @@
 
     scene.add(model);
 
+    // === Einfacher Mundinnenraum (dunkle Kugel im Kopf) ===
+const mouthGeometry = new THREE.SphereGeometry(0.05, 32, 32);
+const mouthMaterial = new THREE.MeshStandardMaterial({
+  color: 0x222222, // sehr dunkles Grau
+  roughness: 0.7,
+  metalness: 0.2
+});
+const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
 
-        // jawOpen finden
-        model.traverse((child) => {
-          if (child.isMesh && child.morphTargetDictionary) {
-            jawDict = child.morphTargetDictionary;
-            jawInfluences = child.morphTargetInfluences;
-            if ("jawOpen" in jawDict) {
-              jawIndex = jawDict["jawOpen"];
-            }
-          }
-        });
+// Position leicht unterhalb der Kopfmitte anpassen (x, y, z variieren je nach Modell)
+mouth.position.set(0, 0.05, 0.03);
 
-        // Automatisch zentrieren und frontal ausrichten
-        const box = new THREE.Box3().setFromObject(model);
-        const size = box.getSize(new THREE.Vector3());
-        const center = box.getCenter(new THREE.Vector3());
-        model.position.sub(center);
-// === Mouth interior "dunkle Kugel" (reliable, render behind head) ===
-// Place this after you've positioned/rotated/scaled the model, and after computing `size`/`maxDim`.
-(function addMouthInterior() {
-  // Größe der Kugel: etwas kleiner als der Kopf, damit sie innen sitzt
-  const radius = Math.max(size.x, size.y, size.z) * 0.45;
-
-  // Wir verwenden BackSide, damit die Innenseite der Kugel sichtbar ist
-  const geom = new THREE.SphereGeometry(radius, 32, 16);
-  const mat = new THREE.MeshBasicMaterial({
-    color: 0x201000,     // dunkles Goldbraun — anpassen nach Geschmack
-    side: THREE.BackSide // Rendern von innen (wir schauen aus dem Mund hinein)
-  });
-
-  const innerSphere = new THREE.Mesh(geom, mat);
-
-  // WICHTIG: renderOrder so setzen, dass die Kugel zuerst gezeichnet wird
-  // und der Kopf danach — dadurch werden Kopf-Polygone die Kugel überdecken,
-  // aber durch Mundöffnungen sieht man die Kugel.
-  innerSphere.renderOrder = 0;
-  model.traverse((c) => { if (c.isMesh) c.renderOrder = 1; });
-
-  // Kugel als Kind des Modells hinzufügen: bewegt/rotiert mit dem Kopf
-  model.add(innerSphere);
-
-  // kleine Offset-Anpassung, falls die Kugel zu weit vorne/hinten sichtbar ist:
-  // Du kannst die Werte in kleinen Schritten anpassen (z.B. z=-0.02 oder y=-0.01).
-  innerSphere.position.set(0, 0, 0); // in Modell-Koordinaten; meist passend
-})();        model.rotation.set(0, -Math.PI / 2, 0);
-
+// Mundkugel dem Modell hinzufügen
+model.add(mouth);
+        
         const maxDim = Math.max(size.x, size.y, size.z);
         const fov = camera.fov * (Math.PI / 180);
         let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
