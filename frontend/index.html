@@ -120,7 +120,14 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setClearColor(0x000000);
-
+    // === Dunkler Hintergrund statt Weiß im Mund ===
+const mouthBackground = new THREE.Mesh(
+  new THREE.SphereGeometry(0.15, 16, 16),
+  new THREE.MeshBasicMaterial({ color: 0x201000 }) // dunkles Goldbraun
+);
+mouthBackground.position.set(0, 0, -0.05); // leicht hinter dem Kopf
+scene.add(mouthBackground);
+// === Ende Hintergrund-Fix ===
     const light = new THREE.DirectionalLight(0xffffff, 2);
     light.position.set(1, 1, 2);
     scene.add(light);
