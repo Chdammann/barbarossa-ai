@@ -133,10 +133,27 @@
     const loadingText = document.getElementById("loading");
 
     loader.load(
-      "./avatar.glb",
-      (gltf) => {
-        model = gltf.scene;
-        scene.add(model);
+  "./avatar.glb",
+  (gltf) => {
+    model = gltf.scene;
+
+    // Ersetze weißes Material durch dunkles Gold
+    model.traverse((node) => {
+      if (node.isMesh && node.material && node.material.color) {
+        const color = node.material.color;
+        if (color.r === 1 && color.g === 1 && color.b === 1) {
+          node.material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(0x4b3b1f), // dunkles Gold
+            metalness: 1.0,
+            roughness: 0.3,
+            side: THREE.DoubleSide
+          });
+        }
+      }
+    });
+
+    scene.add(model);
+
 
         // jawOpen finden
         model.traverse((child) => {
