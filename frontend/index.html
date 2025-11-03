@@ -132,35 +132,62 @@
     const loadingText = document.getElementById("loading");
 
     loader.load(
-      "./avatar.glb",
-      (gltf) => {
-        model = gltf.scene;
-        scene.add(model);
+  "./avatar.glb",
+  (gltf) => {
+    model = gltf.scene;
+    scene.add(model);
 
-        // === Dunkel-Goldener Mundshader ===
-        model.traverse((child) => {
-          if (child.isMesh && child.material) {
-            child.material.side = THREE.DoubleSide;
-            child.material.onBeforeCompile = (shader) => {
-              shader.fragmentShader = shader.fragmentShader.replace(
-                '#include <output_fragment>',
-                `
-                // Farbverlauf von dunklem zu hellem Gold (innen sichtbar)
-                if (!gl_FrontFacing) {
-                  float v = (vViewPosition.y + 0.5) * 0.5; // einfache vertikale Position
-                  vec3 topColor = vec3(0.3, 0.22, 0.05);  // dunkles Gold (oben)
-                  vec3 bottomColor = vec3(0.8, 0.6, 0.15); // helleres Gold (unten)
-                  vec3 gradColor = mix(topColor, bottomColor, clamp(v, 0.0, 1.0));
-                  gl_FragColor = vec4(gradColor, 1.0);
-                }
-                #include <output_fragment>
-                `
-              );
-            };
-            child.material.needsUpdate = true;
-          }
-        });
-        // === Ende Mundshader ===
+    // === Dunkel-goldener Mundshader (Rückseiten einfärben) ===
+    model.traverse((child) => {
+      if (child.isMesh && child.material) {
+        child.material.side = THREE.DoubleSide;
+        child.material.onBeforeCompile = (shader) => {
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <output_fragment>',
+            `
+            // Dunkler goldener Verlauf für Rückseiten (Mundinnenseite)
+            if (!gl_FrontFacing) {
+              // simulierte vertikale Verlaufskomponente
+              float v = clamp((normalize(vViewPosition).y + 1.0) * 0.5, 0.0, 1.0);
+              vec3 topColor = vec3(0.2, 0.15, 0.03);   // sehr dunkles Gold (oben)
+              vec3 bottomColor = vec3(0.6, 0.45, 0.1); // etwas helleres Gold (unten)
+              vec3 gradColor = mix(topColor, bottomColor, v);
+              gl_FragColor.rgb = gradColor;
+            }
+            #include <output_fragment>
+            `
+          );
+        };
+        child.material.needsUpdate = true;
+      }
+    });
+    // === Ende Mundshader ===
+
+    // Automatische Zentrierung usw. (dein Restcode bleibt unverändert)
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    model.position.sub(center);
+    model.rotation.set(0, -Math.PI / 2, 0);
+
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = camera.fov * (Math.PI / 180);
+    let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+    cameraZ *= 1.4;
+    camera.position.set(0, 0, cameraZ);
+    camera.lookAt(0, 0, 0);
+
+    baseRotY = model.rotation.y;
+    baseRotX = model.rotation.x;
+    baseY = model.position.y + 0.05; // <-- hebt den Kopf leicht an
+
+    loadingText.style.display = "none";
+    animate();
+  },
+  undefined,
+  (err) => console.error("Fehler beim Laden des Modells:", err)
+);
+
 
         // jawOpen finden
         model.traverse((child) => {
