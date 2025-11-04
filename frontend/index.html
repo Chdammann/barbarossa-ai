@@ -120,41 +120,28 @@ loader.load("./avatar.glb",
   (gltf)=>{
     model = gltf.scene;
     scene.add(model);
-    model.traverse(child => {
+    // Kopf wieder undurchsichtig machen
+model.traverse(child => {
   if (child.isMesh && child.material) {
-    child.material.transparent = true;
-    child.material.opacity = 0.3;  // halb durchsichtig
+    child.material.transparent = false;
+    child.material.opacity = 1.0;
   }
 });
 
-
-    // === Notlösung: Mundinnenraum als kleine Kugel sichtbar machen ===
-(function addMouthInterior() {
+// Notlösung Mundinnenraum als dunkle Kugel
+(function addMouthInterior(){
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  
-  // Kugelradius: 10% der größten Kopfdimension
-  const radius = Math.max(size.x, size.y, size.z) * 0.1;
+  const radius = Math.max(size.x, size.y, size.z) * 0.2; // 20% Größe
   const geom = new THREE.SphereGeometry(radius, 32, 16);
-
-  // Material: halbtransparent, grünlich für bessere Sichtbarkeit
-  const mat = new THREE.MeshBasicMaterial({
-    color: 0x00ff00,
-    wireframe: true,
-    transparent: true,
-    opacity: 0.5,
-    side: THREE.BackSide
-  });
-
+  const mat = new THREE.MeshBasicMaterial({color: 0x60400a, side: THREE.BackSide}); // dunkelgold
   const innerSphere = new THREE.Mesh(geom, mat);
 
-  // Position: leicht anpassen, damit Kugel im Mund sitzt
+  // Position: leicht nach unten verschieben (-1/4 Radius)
   innerSphere.position.set(0, 0.02 - radius * 0.25, 0.03);
 
-  // Damit die Kugel nicht vom Kopf überdeckt wird
   innerSphere.renderOrder = 0;
   model.traverse(c => { if(c.isMesh) c.renderOrder = 1; });
-
   model.add(innerSphere);
 })();
 
