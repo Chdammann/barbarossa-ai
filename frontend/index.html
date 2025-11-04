@@ -149,7 +149,7 @@ loader.load("./avatar.glb",
   const innerSphere = new THREE.Mesh(geom, mat);
 
   // Position: leicht anpassen, damit Kugel im Mund sitzt
-  innerSphere.position.set(0, 0.02, 0.03);
+  innerSphere.position.set(0, 0.02 - radius * 0.25, 0.03);
 
   // Damit die Kugel nicht vom Kopf überdeckt wird
   innerSphere.renderOrder = 0;
