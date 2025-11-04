@@ -120,35 +120,34 @@ loader.load("./avatar.glb",
   (gltf)=>{
     model = gltf.scene;
     scene.add(model);
-    
-    // === Goldene Scheibe im Mundbereich ===
-const mouthGeometry = new THREE.CircleGeometry(1, 32); // Radius 1, mehr Segmente = glatter Rand
-const mouthMaterial = new THREE.MeshStandardMaterial({
-  color: 0x8b6b0f,        // Goldton
-  metalness: 0.8,
-  roughness: 0.3,
-  side: THREE.DoubleSide
-});
-const mouthDisc = new THREE.Mesh(mouthGeometry, mouthMaterial);
 
-// Scheibe leicht vor den Kopf und tiefer setzen
-mouthDisc.position.set(0, -0.3, 0.05);   // X, Y, Z: ggf. anpassen
-mouthDisc.rotation.x = Math.PI;          // richtig herum drehen
+    // === Kopf halbtransparent ===
+    model.traverse((child) => {
+      if (child.isMesh && child.material) {
+        child.material.transparent = true;
+        child.material.opacity = 0.5;
+        child.material.depthWrite = true;
+        child.material.side = THREE.DoubleSide;
+      }
+    });
 
-scene.add(mouthDisc);
+    // === Mundinnenraum als Scheibe ===
+    const mouthRadius = 0.24; // Größe der Scheibe
+    const mouthGeometry = new THREE.CircleGeometry(mouthRadius, 32);
+    const mouthMaterial = new THREE.MeshStandardMaterial({
+      color: 0x8b6b0f, // dunkelgold
+      metalness: 0.8,
+      roughness: 0.3,
+      side: THREE.DoubleSide
+    });
+    const mouthDisk = new THREE.Mesh(mouthGeometry, mouthMaterial);
+    mouthDisk.rotation.x = -Math.PI/2; // flach ausrichten
+    mouthDisk.position.set(0, -0.12, 0.06); // etwas tiefer und vor jawOpen Vertices
+    mouthDisk.renderOrder = 1; // Kopf zuerst, Scheibe danach
+    model.traverse(c => { if(c.isMesh) c.renderOrder = 0; });
+    model.add(mouthDisk);
 
-    // === Avatar halbtransparent darstellen ===
-model.traverse((child) => {
-  if (child.isMesh && child.material) {
-    child.material.transparent = true;   // Transparenz aktivieren
-    child.material.opacity = 0.4;         // Durchsichtigkeit (0 = unsichtbar, 1 = undurchsichtig)
-    child.material.depthWrite = true;     // verhindert Flimmern
-    child.material.side = THREE.DoubleSide; // beide Seiten sichtbar
-  }
-});
-
-
-       // Morph Target jawOpen finden
+    // === Morph Target jawOpen finden ===
     model.traverse(child=>{
       if(child.isMesh && child.morphTargetDictionary){
         jawDict=child.morphTargetDictionary;
@@ -244,6 +243,7 @@ function buildPulseSchedule(text, rate=1.0){
   pulses.forEach(p=>p.time*=scale);
   return {pulses,duration:durationEst};
 }
+
 function startJawDriver(text, rate=1.0){
   if(jawDriverRAF) cancelAnimationFrame(jawDriverRAF);
   const {pulses,duration}=buildPulseSchedule(text, rate);
@@ -271,6 +271,7 @@ function startJawDriver(text, rate=1.0){
   }
   step();
 }
+
 function stopJawDriver(){
   if(jawDriverRAF) cancelAnimationFrame(jawDriverRAF);
   jawDriverRAF=null;
@@ -284,6 +285,7 @@ function stopJawDriver(){
     closer();
   }
 }
+
 function speak(text){
   const utter=new SpeechSynthesisUtterance(text);
   utter.lang="de-DE";
@@ -294,9 +296,11 @@ function speak(text){
   utter.onend=()=>{ talking=false; stopJawDriver(); };
   speechSynthesis.speak(utter);
 }
+
 if(typeof speechSynthesis!=="undefined" && speechSynthesis.onvoiceschanged!==undefined){
   speechSynthesis.onvoiceschanged=getMaleVoice;
 }
+
 let greeted=false;
 window.addEventListener("click", ()=>{
   if(!greeted){
@@ -304,6 +308,7 @@ window.addEventListener("click", ()=>{
     speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
   }
 });
+
 window.addEventListener("resize", ()=>{
   camera.aspect=window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
