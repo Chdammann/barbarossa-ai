@@ -120,8 +120,9 @@ loader.load("./avatar.glb",
   (gltf)=>{
     model = gltf.scene;
     scene.add(model);
+    
     // === Goldene Scheibe im Mundbereich ===
-const mouthGeometry = new THREE.CircleGeometry(0.12, 32); // Radius 0.12, mehr Segmente = glatter Rand
+const mouthGeometry = new THREE.CircleGeometry(0.5, 32); // Radius 0.12, mehr Segmente = glatter Rand
 const mouthMaterial = new THREE.MeshStandardMaterial({
   color: 0x8b6b0f,        // Goldton
   metalness: 0.8,
