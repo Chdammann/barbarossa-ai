@@ -117,67 +117,83 @@ const loader = new THREE.GLTFLoader();
 const loadingText=document.getElementById("loading");
 
 loader.load("./avatar.glb",
-  (gltf)=>{
+  (gltf) => {
     model = gltf.scene;
     scene.add(model);
-    // Kopf wieder undurchsichtig machen
-model.traverse(child => {
-  if (child.isMesh && child.material) {
-    child.material.transparent = false;
-    child.material.opacity = 1.0;
-  }
-});
 
-// Notlösung Mundinnenraum als dunkle Kugel
-(function addMouthInterior(){
-  const box = new THREE.Box3().setFromObject(model);
-  const size = box.getSize(new THREE.Vector3());
-  const radius = Math.max(size.x, size.y, size.z) * 0.2; // 20% Größe
-  const geom = new THREE.SphereGeometry(radius, 32, 16);
-  const mat = new THREE.MeshBasicMaterial({color: 0x60400a, side: THREE.BackSide}); // dunkelgold
-  const innerSphere = new THREE.Mesh(geom, mat);
-
-  // Position: leicht nach unten verschieben (-1/4 Radius)
-  innerSphere.position.set(0, 0.02 - radius * 0.25, 0.03);
-
-  innerSphere.renderOrder = 0;
-  model.traverse(c => { if(c.isMesh) c.renderOrder = 1; });
-  model.add(innerSphere);
-})();
-
-    // jawOpen Morph finden
-    model.traverse(child=>{
-      if(child.isMesh && child.morphTargetDictionary){
-        jawDict=child.morphTargetDictionary;
-        jawInfluences=child.morphTargetInfluences;
-        if("jawOpen" in jawDict) jawIndex=jawDict["jawOpen"];
+    // Kopf zunächst komplett undurchsichtig
+    model.traverse((child) => {
+      if (child.isMesh && child.material) {
+        child.material.transparent = false;
+        child.material.opacity = 1.0;
       }
     });
 
-    // Zentrieren & ausrichten
+    // === Mundinnenraum als Kugel ===
+    (function addMouthInterior() {
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+
+      // Kugelradius auf 20% der maximalen Kopfgröße
+      const radius = Math.max(size.x, size.y, size.z) * 0.2;
+      const geom = new THREE.SphereGeometry(radius, 32, 16);
+
+      // Material dunkelgold, BackSide für Innenflächen
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0x60400a,
+        side: THREE.BackSide,
+        transparent: false,
+      });
+
+      const innerSphere = new THREE.Mesh(geom, mat);
+
+      // Position: leicht unterhalb des Kopfmittelpunkts, experimentell anpassen
+      innerSphere.position.set(center.x, center.y - size.y * 0.15, center.z);
+
+      // Sicherstellen, dass die Kugel hinter dem Kopf gerendert wird
+      innerSphere.renderOrder = 0;
+      model.traverse(c => { if (c.isMesh) c.renderOrder = 1; });
+
+      model.add(innerSphere);
+    })();
+    // === Ende Mundinnenraum ===
+
+    // jawOpen Morph finden
+    model.traverse((child) => {
+      if (child.isMesh && child.morphTargetDictionary) {
+        jawDict = child.morphTargetDictionary;
+        jawInfluences = child.morphTargetInfluences;
+        if ("jawOpen" in jawDict) jawIndex = jawDict["jawOpen"];
+      }
+    });
+
+    // Zentrieren & Ausrichten
     const box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     model.position.sub(center);
-    model.rotation.set(0,-Math.PI/2,0);
+    model.rotation.set(0, -Math.PI / 2, 0);
 
     // Kamera
-    const maxDim = Math.max(size.x,size.y,size.z);
-    const fov = camera.fov*Math.PI/180;
-    let cameraZ = Math.abs(maxDim/2/Math.tan(fov/2))*1.4;
-    camera.position.set(0,0,cameraZ);
-    camera.lookAt(0,0,0);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = camera.fov * Math.PI / 180;
+    let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.4;
+    camera.position.set(0, 0, cameraZ);
+    camera.lookAt(0, 0, 0);
 
     baseRotY = model.rotation.y;
     baseRotX = model.rotation.x;
     baseY = model.position.y + 0.05;
-    loadingText.style.display="none";
+
+    loadingText.style.display = "none";
     animate();
   },
   undefined,
-  err=>console.error("Fehler beim Laden des Modells:", err)
+  (err) => console.error("Fehler beim Laden des Modells:", err)
 );
 
+    
 function animate(){
   requestAnimationFrame(animate);
   if(model){
