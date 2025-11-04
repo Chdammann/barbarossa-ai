@@ -120,6 +120,16 @@ loader.load("./avatar.glb",
   (gltf)=>{
     model = gltf.scene;
     scene.add(model);
+    // === Avatar halbtransparent darstellen ===
+model.traverse((child) => {
+  if (child.isMesh && child.material) {
+    child.material.transparent = true;   // Transparenz aktivieren
+    child.material.opacity = 0.4;         // Durchsichtigkeit (0 = unsichtbar, 1 = undurchsichtig)
+    child.material.depthWrite = true;     // verhindert Flimmern
+    child.material.side = THREE.DoubleSide; // beide Seiten sichtbar
+  }
+});
+
 
     // === Mundinnenraum als flache Scheibe (Notlösung) ===
     (function addMouthInterior(){
