@@ -120,6 +120,22 @@ loader.load("./avatar.glb",
   (gltf)=>{
     model = gltf.scene;
     scene.add(model);
+    // === Goldene Scheibe im Mundbereich ===
+const mouthGeometry = new THREE.CircleGeometry(0.12, 32); // Radius 0.12, mehr Segmente = glatter Rand
+const mouthMaterial = new THREE.MeshStandardMaterial({
+  color: 0x8b6b0f,        // Goldton
+  metalness: 0.8,
+  roughness: 0.3,
+  side: THREE.DoubleSide
+});
+const mouthDisc = new THREE.Mesh(mouthGeometry, mouthMaterial);
+
+// Scheibe leicht vor den Kopf und tiefer setzen
+mouthDisc.position.set(0, -0.1, 0.05);   // X, Y, Z: ggf. anpassen
+mouthDisc.rotation.x = Math.PI;          // richtig herum drehen
+
+scene.add(mouthDisc);
+
     // === Avatar halbtransparent darstellen ===
 model.traverse((child) => {
   if (child.isMesh && child.material) {
@@ -131,29 +147,7 @@ model.traverse((child) => {
 });
 
 
-    // === Mundinnenraum als flache Scheibe (Notlösung) ===
-    (function addMouthInterior(){
-      const box = new THREE.Box3().setFromObject(model);
-      const size = box.getSize(new THREE.Vector3());
-      const radius = Math.max(size.x, size.y, size.z) * 0.09;
-      const geometry = new THREE.CircleGeometry(radius, 48);
-      const material = new THREE.MeshStandardMaterial({
-        color: 0x705020,
-        emissive: 0x201000,
-        metalness: 0.6,
-        roughness: 0.4,
-        side: THREE.DoubleSide
-      });
-      const mouthDisk = new THREE.Mesh(geometry, material);
-
-      // leicht geneigt und nach innen verschoben
-      mouthDisk.rotation.x = -Math.PI / 2.2;
-      mouthDisk.position.set(0, -0.08, 0.06); // etwas tiefer und näher am Gesicht
-      model.add(mouthDisk);
-    })();
-    // === Ende Mundinnenraum ===
-
-    // Morph Target jawOpen finden
+       // Morph Target jawOpen finden
     model.traverse(child=>{
       if(child.isMesh && child.morphTargetDictionary){
         jawDict=child.morphTargetDictionary;
