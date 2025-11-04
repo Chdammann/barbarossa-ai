@@ -120,6 +120,13 @@ loader.load("./avatar.glb",
   (gltf)=>{
     model = gltf.scene;
     scene.add(model);
+    model.traverse(child => {
+  if (child.isMesh && child.material) {
+    child.material.transparent = true;
+    child.material.opacity = 0.3;  // halb durchsichtig
+  }
+});
+
 
     // === Notlösung Mundinnenraum als Kugel ===
     (function addMouthInterior(){
