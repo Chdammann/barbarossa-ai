@@ -126,9 +126,16 @@ loader.load("./avatar.glb",
       const box = new THREE.Box3().setFromObject(model);
       const size = box.getSize(new THREE.Vector3());
       const radius = Math.max(size.x,size.y,size.z)*0.4;
-      const geom = new THREE.SphereGeometry(radius, 32, 16);
-const mat = new THREE.MeshBasicMaterial({ color: 0x201000, side: THREE.BackSide, transparent: true, opacity: 0.7 });
+      const geom = new THREE.SphereGeometry(radius, 16, 8);
+const mat = new THREE.MeshBasicMaterial({
+  color: 0x00ff00,
+  wireframe: true  // Nur Drahtgitter sichtbar
+});
 const innerSphere = new THREE.Mesh(geom, mat);
+
+      //const geom = new THREE.SphereGeometry(radius, 32, 16);
+//const mat = new THREE.MeshBasicMaterial({ color: 0x201000, side: THREE.BackSide, transparent: true, opacity: 0.7 });
+//const innerSphere = new THREE.Mesh(geom, mat);
 innerSphere.position.set(0, -0.05, 0.08);  // Setzt die Position so, dass sie im Mundraum gut passt
 innerSphere.scale.set(1.2, 1.2, 1.2);  // Skalierung, falls die Kugel zu klein oder zu groß ist
 model.add(innerSphere);
