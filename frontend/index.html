@@ -95,6 +95,7 @@ Zum Starten den Kopf antippen, zum Fragen kurz Mikro drücken, nach Ende der Fra
 let model, talking=false;
 let baseRotY=Math.PI/2, baseRotX=0, baseY=0.6;
 let jawDict=null, jawInfluences=null, jawIndex=null;
+let jawDriverRAF=null;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -121,33 +122,31 @@ loader.load("./avatar.glb",
     model = gltf.scene;
     scene.add(model);
 
-    // === Kopf halbtransparent ===
-    model.traverse((child) => {
-      if (child.isMesh && child.material) {
-        child.material.transparent = true;
-        child.material.opacity = 0.5;
-        child.material.depthWrite = true;
-        child.material.side = THREE.DoubleSide;
-      }
-    });
-
-    // === Mundinnenraum als Scheibe ===
-    const mouthRadius = 0.24; // Größe der Scheibe
-    const mouthGeometry = new THREE.CircleGeometry(mouthRadius, 32);
-    const mouthMaterial = new THREE.MeshStandardMaterial({
-      color: 0x8b6b0f, // dunkelgold
+    // === Mundscheibe (flach) unter Mundöffnung ===
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const radius = Math.max(size.x, size.y, size.z)*0.15; // passt zur Öffnung
+    const geom = new THREE.CircleGeometry(radius, 32);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x8b6b0f, // Goldton
       metalness: 0.8,
       roughness: 0.3,
       side: THREE.DoubleSide
     });
-    const mouthDisk = new THREE.Mesh(mouthGeometry, mouthMaterial);
-    mouthDisk.rotation.x = -Math.PI/2; // flach ausrichten
-    mouthDisk.position.set(0, -0.12, 0.06); // etwas tiefer und vor jawOpen Vertices
-    mouthDisk.renderOrder = 1; // Kopf zuerst, Scheibe danach
-    model.traverse(c => { if(c.isMesh) c.renderOrder = 0; });
-    model.add(mouthDisk);
+    const mouthDisk = new THREE.Mesh(geom, mat);
+    mouthDisk.rotation.x = -Math.PI/2; // flach
+    mouthDisk.position.set(0, -0.05, 0.08); // leicht unter Mundmitte
+    scene.add(mouthDisk);
 
-    // === Morph Target jawOpen finden ===
+    // === Avatar wieder intransparent ===
+    model.traverse(child=>{
+      if(child.isMesh && child.material){
+        child.material.transparent = false;
+        child.material.opacity = 1;
+      }
+    });
+
+    // Morph Target jawOpen finden
     model.traverse(child=>{
       if(child.isMesh && child.morphTargetDictionary){
         jawDict=child.morphTargetDictionary;
@@ -157,16 +156,15 @@ loader.load("./avatar.glb",
     });
 
     // Zentrieren & Ausrichten
-    const box = new THREE.Box3().setFromObject(model);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
+    const box2 = new THREE.Box3().setFromObject(model);
+    const center = box2.getCenter(new THREE.Vector3());
     model.position.sub(center);
     model.rotation.set(0, -Math.PI/2, 0);
 
-    // Kamera justieren
-    const maxDim = Math.max(size.x,size.y,size.z);
+    // Kamera
+    const maxDim = Math.max(box2.getSize(new THREE.Vector3()).x, box2.getSize(new THREE.Vector3()).y, box2.getSize(new THREE.Vector3()).z);
     const fov = camera.fov*Math.PI/180;
-    let cameraZ = Math.abs(maxDim/2/Math.tan(fov/2))*1.4;
+    const cameraZ = Math.abs(maxDim/2/Math.tan(fov/2))*1.4;
     camera.position.set(0,0,cameraZ);
     camera.lookAt(0,0,0);
 
@@ -196,7 +194,7 @@ function animate(){
   renderer.render(scene,camera);
 }
 
-// Sprachsteuerung + Lippenbewegung
+// Sprachsteuerung
 const micBtn=document.getElementById("micBtn");
 const micNotice=document.getElementById("micNotice");
 let recognizing=false, recognition;
@@ -206,6 +204,7 @@ if("webkitSpeechRecognition" in window){
   recognition.lang="de-DE";
   recognition.continuous=false;
   recognition.interimResults=false;
+
   recognition.onresult=async (event)=>{
     const text=event.results[0][0].transcript;
     const resp = await fetch("/ask",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({text})});
@@ -227,7 +226,7 @@ function getMaleVoice(){
   return voices.find(v=>/male|mann|stefan|markus|male/i.test(v.name))||voices.find(v=>v.lang.startsWith("de"))||voices[0];
 }
 
-let jawDriverRAF=null;
+// === stabile Jaw-Animation ===
 function buildPulseSchedule(text, rate=1.0){
   const durationEst=Math.max(0.8,text.length/(12*rate));
   const pulses=[];
@@ -249,6 +248,7 @@ function startJawDriver(text, rate=1.0){
   const {pulses,duration}=buildPulseSchedule(text, rate);
   const start=performance.now();
   const pulseWidth=0.08, base=0.03, maxOpen=0.55;
+
   function envelopeAt(t){
     let e=0;
     for(const p of pulses){
@@ -258,11 +258,11 @@ function startJawDriver(text, rate=1.0){
     e+=0.15*(0.5+0.5*Math.sin(t*6.0));
     return Math.min(1.0,e);
   }
+
   function step(){
     const now=performance.now();
     const t=(now-start)/1000;
-    const active=talking && jawInfluences && jawIndex!==null;
-    if(active){
+    if(talking && Array.isArray(jawInfluences) && jawIndex!==null){
       const env=envelopeAt(Math.min(t,duration));
       const target=THREE.MathUtils.clamp(base+env*maxOpen,0,1);
       jawInfluences[jawIndex]=THREE.MathUtils.lerp(jawInfluences[jawIndex]||0,target,0.5);
@@ -275,7 +275,7 @@ function startJawDriver(text, rate=1.0){
 function stopJawDriver(){
   if(jawDriverRAF) cancelAnimationFrame(jawDriverRAF);
   jawDriverRAF=null;
-  if(jawInfluences && jawIndex!==null){
+  if(Array.isArray(jawInfluences) && jawIndex!==null){
     const closer=()=>{
       const current=jawInfluences[jawIndex]||0;
       const next=THREE.MathUtils.lerp(current,0,0.3);
