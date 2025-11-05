@@ -122,28 +122,29 @@ loader.load("./avatar.glb",
     model = gltf.scene;
     scene.add(model);
 
-    // === Mundscheibe (flach) unter Mundöffnung ===
+   // === Mundscheibe (flach) unter Mundöffnung ===
 const box = new THREE.Box3().setFromObject(model);
 const size = box.getSize(new THREE.Vector3());
 const radius = Math.max(size.x, size.y, size.z) * 0.12; // etwas kleiner für präzise Abdeckung
+
 const geom = new THREE.CircleGeometry(radius, 32);
 const mat = new THREE.MeshStandardMaterial({
-  color: 0x3a2a0a, // dunklerer Braunton für Schattenwirkung
-  metalness: 0.4,
-  roughness: 0.7,
+  color: 0x8b6c2a, // Dunkelgold
+  metalness: 0.8,  // Glänzend
+  roughness: 0.2,  // Spiegelnde Oberfläche
   side: THREE.DoubleSide
 });
+
 const mouthDisk = new THREE.Mesh(geom, mat);
 
 // Positionierung relativ zum Kopf
 mouthDisk.rotation.x = Math.PI / 2; // senkrecht zur Kamera
-mouthDisk.position.set(0, -0.12, 0.02); // tiefer und leicht zurückgesetzt
-mouthDisk.renderOrder = 1; // sicherstellen, dass sie vor Hintergrund gerendert wird
+mouthDisk.position.set(0, -0.12, -0.04); // weiter nach hinten versetzt
+mouthDisk.renderOrder = 1;
 mouthDisk.material.depthTest = true;
 mouthDisk.material.depthWrite = true;
 
-model.add(mouthDisk); // direkt an den Kopf anhängen statt an die Szene
-
+model.add(mouthDisk); // direkt an den Kopf anhängen
 
     // === Avatar wieder intransparent ===
     model.traverse(child=>{
