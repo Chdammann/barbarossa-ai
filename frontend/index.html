@@ -229,9 +229,20 @@ micBtn.onclick=()=>{
   }
 };
 
+let selectedVoice = null;
+
 function getMaleVoice(){
-  const voices=speechSynthesis.getVoices();
-  return voices.find(v=>/male|mann|stefan|markus|male/i.test(v.name))||voices.find(v=>v.lang.startsWith("de"))||voices[0];
+  const voices = speechSynthesis.getVoices();
+  selectedVoice = voices.find(v => /male|mann|stefan|markus|male/i.test(v.name)) ||
+                  voices.find(v => v.lang.startsWith("de")) ||
+                  voices[0];
+}
+
+// Stimmen laden und speichern
+if (typeof speechSynthesis !== "undefined") {
+  speechSynthesis.onvoiceschanged = getMaleVoice;
+  // Manuelles Triggern (für manche Browser nötig)
+  getMaleVoice();
 }
 
 // === stabile Jaw-Animation ===
