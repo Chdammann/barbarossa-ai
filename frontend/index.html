@@ -313,6 +313,7 @@ function speak(text){
   speechSynthesis.speak(utter);
 }
 
+
 // Begrüßung beim ersten Klick, sobald Stimme verfügbar
 let greeted = false;
 window.addEventListener("click", () => {
@@ -329,9 +330,36 @@ window.addEventListener("click", () => {
   }
 });
 window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+ <script>
+let selectedVoice = null;
+let greeted = false;
+
+// Stimme laden, wenn verfügbar
+function loadVoicesAndGreet() {
+  const voices = speechSynthesis.getVoices();
+  if (voices.length > 0) {
+    selectedVoice = voices.find(v => /male|mann|stefan|markus|male/i.test(v.name)) ||
+                    voices.find(v => v.lang.startsWith("de")) ||
+                    voices[0];
+
+    if (!greeted) {
+      greeted = true;
+      speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
+    }
+  } else {
+    // Stimmen noch nicht verfügbar – später erneut versuchen
+    setTimeout(loadVoicesAndGreet, 100);
+  }
+}
+
+// Stimme bei Änderung laden
+if (typeof speechSynthesis !== "undefined") {
+  speechSynthesis.onvoiceschanged = loadVoicesAndGreet;
+}
+
+// Klick startet Begrüßung (wenn noch nicht erfolgt)
+window.addEventListener("click", () => {
+  if (!greeted) loadVoicesAndGreet();
 });
 </script>
 </body>
