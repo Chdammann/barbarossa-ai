@@ -306,15 +306,16 @@ function stopJawDriver(){
 }
 
 function speak(text){
-  const utter=new SpeechSynthesisUtterance(text);
-  utter.lang="de-DE";
-  utter.rate=0.95;
-  utter.pitch=0.6;
-  utter.voice=getMaleVoice();
-  utter.onstart=()=>{ talking=true; startJawDriver(text, utter.rate); };
-  utter.onend=()=>{ talking=false; stopJawDriver(); };
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "de-DE";
+  utter.rate = 0.95;
+  utter.pitch = 0.6;
+  utter.voice = selectedVoice;
+  utter.onstart = () => { talking = true; startJawDriver(text, utter.rate); };
+  utter.onend = () => { talking = false; stopJawDriver(); };
   speechSynthesis.speak(utter);
 }
+
 
 if(typeof speechSynthesis!=="undefined" && speechSynthesis.onvoiceschanged!==undefined){
   speechSynthesis.onvoiceschanged=getMaleVoice;
