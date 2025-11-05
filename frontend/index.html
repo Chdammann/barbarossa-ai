@@ -105,7 +105,6 @@ const renderer = new THREE.WebGLRenderer({canvas:document.getElementById("avatar
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setClearColor(0x000000);
-
 const light = new THREE.DirectionalLight(0xffffff,2);
 light.position.set(1,1,2);
 scene.add(light);
@@ -122,31 +121,27 @@ loader.load("./avatar.glb",
     model = gltf.scene;
     scene.add(model);
 
-   // === Mundscheibe (flach) unter Mundöffnung ===
-const box = new THREE.Box3().setFromObject(model);
-const size = box.getSize(new THREE.Vector3());
-const radius = Math.max(size.x, size.y, size.z) * 0.12; // etwas kleiner für präzise Abdeckung
+    // === Mundscheibe (flach) unter Mundöffnung ===
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const radius = Math.max(size.x, size.y, size.z) * 0.12;
 
-const geom = new THREE.CircleGeometry(radius, 32);
-const mat = new THREE.MeshStandardMaterial({
-  color: 0x8b6c2a, // Dunkelgold
-  metalness: 0.8,  // Glänzend
-  roughness: 0.2,  // Spiegelnde Oberfläche
-  side: THREE.DoubleSide
-});
+    const geom = new THREE.CircleGeometry(radius, 32);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x8b6c2a,
+      metalness: 0.8,
+      roughness: 0.2,
+      side: THREE.DoubleSide
+    });
 
-const mouthDisk = new THREE.Mesh(geom, mat);
+    const mouthDisk = new THREE.Mesh(geom, mat);
+    mouthDisk.rotation.x = Math.PI / 2;
+    mouthDisk.position.set(0, -0.12, -0.04);
+    mouthDisk.renderOrder = 1;
+    mouthDisk.material.depthTest = true;
+    mouthDisk.material.depthWrite = true;
+    model.add(mouthDisk);
 
-// Positionierung relativ zum Kopf
-mouthDisk.rotation.x = Math.PI / 2; // senkrecht zur Kamera
-mouthDisk.position.set(0, -0.12, -0.04); // weiter nach hinten versetzt
-mouthDisk.renderOrder = 1;
-mouthDisk.material.depthTest = true;
-mouthDisk.material.depthWrite = true;
-
-model.add(mouthDisk); // direkt an den Kopf anhängen
-
-    // === Avatar wieder intransparent ===
     model.traverse(child=>{
       if(child.isMesh && child.material){
         child.material.transparent = false;
@@ -154,7 +149,6 @@ model.add(mouthDisk); // direkt an den Kopf anhängen
       }
     });
 
-    // Morph Target jawOpen finden
     model.traverse(child=>{
       if(child.isMesh && child.morphTargetDictionary){
         jawDict=child.morphTargetDictionary;
@@ -163,13 +157,11 @@ model.add(mouthDisk); // direkt an den Kopf anhängen
       }
     });
 
-    // Zentrieren & Ausrichten
     const box2 = new THREE.Box3().setFromObject(model);
     const center = box2.getCenter(new THREE.Vector3());
     model.position.sub(center);
     model.rotation.set(0, -Math.PI/2, 0);
 
-    // Kamera
     const maxDim = Math.max(box2.getSize(new THREE.Vector3()).x, box2.getSize(new THREE.Vector3()).y, box2.getSize(new THREE.Vector3()).z);
     const fov = camera.fov*Math.PI/180;
     const cameraZ = Math.abs(maxDim/2/Math.tan(fov/2))*1.4;
@@ -201,7 +193,6 @@ function animate(){
   }
   renderer.render(scene,camera);
 }
-
 // Sprachsteuerung
 const micBtn=document.getElementById("micBtn");
 const micNotice=document.getElementById("micNotice");
@@ -220,12 +211,21 @@ if("webkitSpeechRecognition" in window){
     speak(data.answer);
   };
   recognition.onend=()=>recognizing=false;
-} else { micNotice.textContent="🎤 Sprachsteuerung wird in diesem Browser nicht unterstützt."; }
+} else {
+  micNotice.textContent="🎤 Sprachsteuerung wird in diesem Browser nicht unterstützt.";
+}
 
 micBtn.onclick=()=>{
   if(recognition){
-    if(recognizing){ recognition.stop(); recognizing=false; micBtn.style.background="#222"; }
-    else { recognition.start(); recognizing=true; micBtn.style.background="#555"; }
+    if(recognizing){
+      recognition.stop();
+      recognizing=false;
+      micBtn.style.background="#222";
+    } else {
+      recognition.start();
+      recognizing=true;
+      micBtn.style.background="#555";
+    }
   }
 };
 
@@ -238,14 +238,11 @@ function getMaleVoice(){
                   voices[0];
 }
 
-// Stimmen laden und speichern
 if (typeof speechSynthesis !== "undefined") {
   speechSynthesis.onvoiceschanged = getMaleVoice;
-  // Manuelles Triggern (für manche Browser nötig)
   getMaleVoice();
 }
 
-// === stabile Jaw-Animation ===
 function buildPulseSchedule(text, rate=1.0){
   const durationEst=Math.max(0.8,text.length/(12*rate));
   const pulses=[];
@@ -316,21 +313,23 @@ function speak(text){
   speechSynthesis.speak(utter);
 }
 
-
-if(typeof speechSynthesis!=="undefined" && speechSynthesis.onvoiceschanged!==undefined){
-  speechSynthesis.onvoiceschanged=getMaleVoice;
-}
-
-let greeted=false;
-window.addEventListener("click", ()=>{
-  if(!greeted){
-    greeted=true;
-    speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
+// Begrüßung beim ersten Klick, sobald Stimme verfügbar
+let greeted = false;
+window.addEventListener("click", () => {
+  if (!greeted) {
+    greeted = true;
+    const waitForVoice = () => {
+      if (selectedVoice) {
+        speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
+      } else {
+        setTimeout(waitForVoice, 100);
+      }
+    };
+    waitForVoice();
   }
 });
-
-window.addEventListener("resize", ()=>{
-  camera.aspect=window.innerWidth/window.innerHeight;
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
