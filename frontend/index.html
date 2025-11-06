@@ -128,6 +128,8 @@ loader.load("./avatar.glb", gltf=>{
   model.scale.set(scaleFactor, scaleFactor, scaleFactor);
   const center = box.getCenter(new THREE.Vector3());
   model.position.sub(center); // zentrieren
+  // === 90 Grad Drehung nach rechts ===
+  model.rotation.y = -Math.PI/2; // jetzt frontal
   scene.add(model);
   loadingText.style.display="none";
   animate();
@@ -141,11 +143,11 @@ function animate(){
   requestAnimationFrame(animate);
   if(model){
     if(talking){
-      model.rotation.y = baseRotY + Math.sin(Date.now()*0.0015)*0.04;
+      model.rotation.y = baseRotY + Math.sin(Date.now()*0.0015)*0.04 - Math.PI/2;
       model.rotation.x = baseRotX + Math.sin(Date.now()*0.0019)*0.025;
       model.position.y = baseY + Math.sin(Date.now()*0.01)*0.004;
     }else{
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY,0.05);
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY - Math.PI/2,0.05);
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX,0.05);
       model.position.y = THREE.MathUtils.lerp(model.position.y, baseY,0.05);
     }
@@ -159,7 +161,7 @@ window.addEventListener("resize", ()=>{
   renderer.setSize(window.innerWidth,window.innerHeight);
 });
 
-  // =======================
+// =======================
 // Sprachsteuerung & Mikrofon
 // =======================
 const micBtn = document.getElementById("micBtn");
@@ -219,6 +221,7 @@ function speak(text){
   utter.rate=0.95;
   utter.pitch=0.6;
   utter.voice = getMaleVoice();
+  utter.volume = 0.6; // mittlere Lautstärke vor Sprechen
   utter.onstart=()=>{ talking=true; };
   utter.onend=()=>{ talking=false; };
   speechSynthesis.speak(utter);
