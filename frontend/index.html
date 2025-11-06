@@ -1,34 +1,81 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Frag Friedrich Barbarossa</title>
 <style>
 body {
-  margin:0; overflow:hidden;
-  background-color:black;
-  display:flex; justify-content:center; align-items:center;
-  height:100vh; flex-direction:column;
-  font-family:"Georgia",serif; color:white;
+  margin: 0;
+  overflow: hidden;
+  background-color: black;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  flex-direction: column;
+  font-family: "Georgia", serif;
+  color: white;
 }
 h1 {
-  position:absolute; top:20px; width:100%; text-align:center;
-  font-size:2em; color:#e0b36b; text-shadow:0 0 10px #000;
-  letter-spacing:2px; animation:pulse 3s ease-in-out infinite;
+  position: absolute;
+  top: 20px;
+  width: 100%;
+  text-align: center;
+  font-size: 2em;
+  color: #e0b36b;
+  text-shadow: 0 0 10px #000;
+  letter-spacing: 2px;
+  animation: pulse 3s ease-in-out infinite;
 }
-@keyframes pulse {0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.05);opacity:0.9;}}
-#avatarCanvas {width:100%;height:100%;display:block;}
-#loading {position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  color:#ccc;font-size:1.2em;text-align:center;}
-#micBtn {position:absolute;bottom:60px;left:50%;transform:translateX(-50%);
-  width:80px;height:80px;border-radius:50%;background:#222;color:white;border:none;
-  font-size:32px;cursor:pointer;z-index:10;}
-#micBtn:hover {background:#444;}
-#micNotice {position:absolute;bottom:140px;width:100%;text-align:center;color:#aaa;font-size:0.9em;}
-footer {position:absolute;bottom:15px;width:100%;text-align:center;font-size:0.8em;color:#aaa;}
-footer a {color:#aaa;text-decoration:none;}
-footer a:hover{text-decoration:underline;}
+@keyframes pulse {
+  0%,100%{transform:scale(1);opacity:1;}
+  50%{transform:scale(1.05);opacity:0.9;}
+}
+#avatarCanvas { width: 100%; height: 100%; display: block; }
+#loading {
+  position: absolute;
+  top:50%;
+  left:50%;
+  transform: translate(-50%,-50%);
+  color:#ccc;
+  font-size:1.2em;
+  text-align:center;
+}
+#micBtn {
+  position:absolute;
+  bottom:60px;
+  left:50%;
+  transform:translateX(-50%);
+  width:80px;
+  height:80px;
+  border-radius:50%;
+  background:#222;
+  color:white;
+  border:none;
+  font-size:32px;
+  cursor:pointer;
+  z-index:10;
+}
+#micBtn:hover { background:#444; }
+#micNotice {
+  position:absolute;
+  bottom:140px;
+  width:100%;
+  text-align:center;
+  color:#aaa;
+  font-size:0.9em;
+}
+footer {
+  position:absolute;
+  bottom:15px;
+  width:100%;
+  text-align:center;
+  font-size:0.8em;
+  color:#aaa;
+}
+footer a { color:#aaa; text-decoration:none; }
+footer a:hover { text-decoration:underline; }
 </style>
 </head>
 <body>
@@ -43,134 +90,174 @@ footer a:hover{text-decoration:underline;}
 <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-let model, talking=false, jawDict=null, jawInfluences=null, jawIndex=null, jawDriverRAF=null;
-let greeted=false;
+// =======================
+// Grundvariablen
+// =======================
+let model, talking=false, greeted=false;
+let jawDict=null, jawInfluences=null, jawIndex=null, jawDriverRAF=null;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({canvas:document.getElementById("avatarCanvas"),antialias:true});
-renderer.setSize(window.innerWidth,window.innerHeight); renderer.setPixelRatio(window.devicePixelRatio); renderer.setClearColor(0x000000);
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("avatarCanvas"), antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setClearColor(0x000000);
 
-const light = new THREE.DirectionalLight(0xffffff,1.2); light.position.set(1,1,2); scene.add(light);
+const light = new THREE.DirectionalLight(0xffffff,1.2);
+light.position.set(1,1,2);
+scene.add(light);
 scene.add(new THREE.AmbientLight(0x666666));
 
 const loader = new THREE.GLTFLoader();
 const loadingText = document.getElementById("loading");
 
+// =======================
+// Avatar laden & zentrieren
+// =======================
 loader.load("./avatar.glb",
   (gltf)=>{
-    model=gltf.scene;
+    model = gltf.scene;
+    // Bounding Box für Zentrierung & dynamisches Scaling
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x,size.y,size.z);
+    const scaleFactor = 1.2 / maxDim; // passt in Kamera
+    model.scale.setScalar(scaleFactor);
+    // Zentrum auf 0,0,0
+    const center = box.getCenter(new THREE.Vector3());
+    model.position.sub(center.multiplyScalar(scaleFactor));
     scene.add(model);
 
-    // Dynamische Zentrierung & Skalierung
-    const box=new THREE.Box3().setFromObject(model);
-    const size=box.getSize(new THREE.Vector3());
-    const maxDim=Math.max(size.x,size.y,size.z);
-    const scaleFactor=1.5/maxDim; // passt in alle Browser
-    model.scale.set(scaleFactor,scaleFactor,scaleFactor);
-
-    const center=box.getCenter(new THREE.Vector3());
-    model.position.sub(center);
-    model.position.y -= size.y*scaleFactor/2;
-
-    // Morph Targets
+    // Morph Target jawOpen finden
     model.traverse(c=>{
       if(c.isMesh && c.morphTargetDictionary){
-        jawDict=c.morphTargetDictionary;
-        jawInfluences=c.morphTargetInfluences;
+        jawDict = c.morphTargetDictionary;
+        jawInfluences = c.morphTargetInfluences;
         if("jawOpen" in jawDict) jawIndex=jawDict["jawOpen"];
       }
     });
 
     loadingText.style.display="none";
-
-    // Begrüßung
-    if(!greeted){
-      greeted=true;
-      setTimeout(()=> speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?"), 500);
-    }
-
     animate();
   },
   undefined,
-  (err)=>{console.error("Fehler beim Laden des Modells:",err); loadingText.textContent="Fehler beim Laden des Avatar.";}
+  (err)=>{ console.error("Fehler beim Laden des Modells:",err); loadingText.textContent="Fehler beim Laden des Avatar."; }
 );
 
+// =======================
+// Basisrotation / Position
+// =======================
 let baseRotY=0, baseRotX=0, baseY=0;
+
 function animate(){
   requestAnimationFrame(animate);
   if(model){
     if(talking){
-      model.rotation.y=baseRotY+Math.sin(Date.now()*0.0015)*0.04;
-      model.rotation.x=baseRotX+Math.sin(Date.now()*0.0019)*0.025;
-      model.position.y=baseY+Math.sin(Date.now()*0.01)*0.004;
-    }else{
-      model.rotation.y=THREE.MathUtils.lerp(model.rotation.y,baseRotY,0.05);
-      model.rotation.x=THREE.MathUtils.lerp(model.rotation.x,baseRotX,0.05);
-      model.position.y=THREE.MathUtils.lerp(model.position.y,baseY,0.05);
+      model.rotation.y = baseRotY + Math.sin(Date.now()*0.0015)*0.04;
+      model.rotation.x = baseRotX + Math.sin(Date.now()*0.0019)*0.025;
+      model.position.y = baseY + Math.sin(Date.now()*0.01)*0.004;
+    } else {
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY, 0.05);
+      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.05);
+      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.05);
     }
 
     // Kieferbewegung
-    if(jawInfluences && jawIndex!==null && talking){
-      jawInfluences[jawIndex]=Math.sin(Date.now()*0.008)*0.4;
+    if(Array.isArray(jawInfluences) && jawIndex!==null && talking){
+      const env = Math.sin(Date.now()*0.01)*0.5 + 0.5;
+      jawInfluences[jawIndex] = THREE.MathUtils.lerp(jawInfluences[jawIndex], env*0.5, 0.3);
     }
   }
   renderer.render(scene,camera);
 }
 
-// === Mikrofon & KI-Abfrage ===
-const micBtn=document.getElementById("micBtn");
-const micNotice=document.getElementById("micNotice");
+// =======================
+// Fenstergröße anpassen
+// =======================
+window.addEventListener("resize", ()=>{
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+
+  // =======================
+// Sprachsteuerung & Mikrofon
+// =======================
+const micBtn = document.getElementById("micBtn");
+const micNotice = document.getElementById("micNotice");
 let recognizing=false, recognition;
 
 if("webkitSpeechRecognition" in window){
-  recognition=new webkitSpeechRecognition();
-  recognition.lang="de-DE"; recognition.continuous=false; recognition.interimResults=false;
+  recognition = new webkitSpeechRecognition();
+  recognition.lang="de-DE";
+  recognition.continuous=false;
+  recognition.interimResults=false;
 
-  recognition.onresult=async(event)=>{
-    const text=event.results[0][0].transcript;
+  recognition.onresult=async (event)=>{
+    const text = event.results[0][0].transcript;
+    console.log("🎙️ Gesprochen:", text);
     try{
-      const resp=await fetch("/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});
-      const data=await resp.json();
+      const resp = await fetch("/ask", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({text})
+      });
+      const data = await resp.json();
       speak(data.answer);
-    }catch(e){console.error("Fehler bei /ask:",e);}
+    }catch(e){ console.error("Fehler bei /ask:",e); }
   };
 
   recognition.onend=()=>{recognizing=false; micBtn.style.background="#222";}
 }else{
-  micNotice.textContent="🎤 Sprachsteuerung nicht unterstützt.";
+  micNotice.textContent="🎤 Sprachsteuerung wird im Browser nicht unterstützt. Bitte Chrome/Edge nutzen.";
 }
 
 micBtn.onclick=()=>{
   if(!recognition) return;
-  if(recognizing){recognition.stop(); recognizing=false; micBtn.style.background="#222";}
-  else{recognition.start(); recognizing=true; micBtn.style.background="#555";}
+  if(recognizing){
+    recognition.stop();
+  }else{
+    recognition.start();
+    micBtn.style.background="#555";
+  }
+  recognizing=!recognizing;
 };
 
-// === Sprachsynthese ===
+// =======================
+// Stimme & sprechen
+// =======================
 function getMaleVoice(){
-  const voices=speechSynthesis.getVoices();
-  return voices.find(v=>/male|mann|stefan|markus|male/i.test(v.name))||voices.find(v=>v.lang.startsWith("de"))||voices[0];
+  const voices = speechSynthesis.getVoices();
+  return voices.find(v=>/male|mann|stefan|markus|male/i.test(v.name)) ||
+         voices.find(v=>v.lang.startsWith("de")) ||
+         voices[0]||null;
 }
 
 function speak(text){
-  const utter=new SpeechSynthesisUtterance(text);
-  utter.lang="de-DE"; utter.rate=0.95; utter.pitch=0.6;
-  utter.voice=getMaleVoice();
-  utter.onstart=()=>{talking=true;}
-  utter.onend=()=>{talking=false;}
+  if(!text) return;
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang="de-DE";
+  utter.rate=0.95;
+  utter.pitch=0.6;
+  utter.voice = getMaleVoice();
+  utter.onstart=()=>{ talking=true; };
+  utter.onend=()=>{ talking=false; };
   speechSynthesis.speak(utter);
 }
 
+// Voices laden
 if(typeof speechSynthesis!=="undefined" && speechSynthesis.onvoiceschanged!==undefined){
   speechSynthesis.onvoiceschanged=getMaleVoice;
 }
 
-// === Fensteranpassung ===
-window.addEventListener("resize",()=>{
-  camera.aspect=window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth,window.innerHeight);
+// =======================
+// Begrüßung bei erster Berührung
+// =======================
+window.addEventListener("click", ()=>{
+  if(!greeted){
+    greeted=true;
+    speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
+  }
 });
 </script>
 </body>
