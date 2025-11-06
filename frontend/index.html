@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Frag Friedrich Barbarossa</title>
+
 <style>
 body {
   margin: 0;
@@ -20,8 +21,8 @@ body {
 h1 {
   position: absolute;
   top: 20px;
-  width: 100%;
   text-align: center;
+  width: 100%;
   font-size: 2em;
   color: #e0b36b;
   text-shadow: 0 0 10px #000;
@@ -29,53 +30,53 @@ h1 {
   animation: pulse 3s ease-in-out infinite;
 }
 @keyframes pulse {
-  0%,100%{transform:scale(1);opacity:1;}
-  50%{transform:scale(1.05);opacity:0.9;}
+  0%,100% { transform: scale(1); opacity:1; }
+  50% { transform: scale(1.05); opacity:0.9; }
 }
 #avatarCanvas { width: 100%; height: 100%; display: block; }
 #loading {
   position: absolute;
-  top:50%;
-  left:50%;
+  top: 50%;
+  left: 50%;
   transform: translate(-50%,-50%);
-  color:#ccc;
-  font-size:1.2em;
-  text-align:center;
+  color: #ccc;
+  font-size: 1.2em;
+  text-align: center;
 }
 #micBtn {
-  position:absolute;
-  bottom:60px;
-  left:50%;
-  transform:translateX(-50%);
-  width:80px;
-  height:80px;
-  border-radius:50%;
-  background:#222;
-  color:white;
-  border:none;
-  font-size:32px;
-  cursor:pointer;
-  z-index:10;
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #222;
+  color: white;
+  border: none;
+  font-size: 32px;
+  cursor: pointer;
+  z-index: 10;
 }
 #micBtn:hover { background:#444; }
 #micNotice {
-  position:absolute;
-  bottom:140px;
-  width:100%;
-  text-align:center;
-  color:#aaa;
-  font-size:0.9em;
+  position: absolute;
+  bottom: 140px;
+  width: 100%;
+  text-align: center;
+  color: #aaa;
+  font-size: 0.9em;
 }
 footer {
-  position:absolute;
-  bottom:15px;
-  width:100%;
-  text-align:center;
-  font-size:0.8em;
-  color:#aaa;
+  position: absolute;
+  bottom: 15px;
+  width: 100%;
+  text-align: center;
+  font-size: 0.8em;
+  color: #aaa;
 }
 footer a { color:#aaa; text-decoration:none; }
-footer a:hover { text-decoration:underline; }
+footer a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -84,71 +85,58 @@ footer a:hover { text-decoration:underline; }
 <canvas id="avatarCanvas"></canvas>
 <button id="micBtn">🎤</button>
 <div id="micNotice"></div>
-<footer>© 2025 <a href="https://christoph-dammann.de" target="_blank">Dr. Christoph Dammann</a></footer>
 
+<footer>
+© 2025 <a href="https://christoph-dammann.de" target="_blank">Dr. Christoph Dammann</a>
+</footer>
+
+<!-- Three.js -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-// =======================
-// Grundvariablen
-// =======================
 let model, talking=false, greeted=false;
-let jawDict=null, jawInfluences=null, jawIndex=null, jawDriverRAF=null;
+let baseRotY=0, baseRotX=0, baseY=0;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("avatarCanvas"), antialias:true });
+camera.position.set(0,0,2.8);
+
+const renderer = new THREE.WebGLRenderer({canvas: document.getElementById("avatarCanvas"), antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setClearColor(0x000000);
 
-const light = new THREE.DirectionalLight(0xffffff,1.2);
+const light = new THREE.DirectionalLight(0xffffff,2);
 light.position.set(1,1,2);
 scene.add(light);
-scene.add(new THREE.AmbientLight(0x666666));
+scene.add(new THREE.AmbientLight(0xffffff,0.8));
+const frontLight = new THREE.PointLight(0xffffff,0.8);
+frontLight.position.set(0,0.5,2);
+scene.add(frontLight);
 
 const loader = new THREE.GLTFLoader();
 const loadingText = document.getElementById("loading");
 
-// =======================
-// Avatar laden & zentrieren
-// =======================
-loader.load("./avatar.glb",
-  (gltf)=>{
-    model = gltf.scene;
-    // Bounding Box für Zentrierung & dynamisches Scaling
-    const box = new THREE.Box3().setFromObject(model);
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x,size.y,size.z);
-    const scaleFactor = 1.2 / maxDim; // passt in Kamera
-    model.scale.setScalar(scaleFactor);
-    // Zentrum auf 0,0,0
-    const center = box.getCenter(new THREE.Vector3());
-    model.position.sub(center.multiplyScalar(scaleFactor));
-    scene.add(model);
+loader.load("./avatar.glb", gltf=>{
+  model=gltf.scene;
+  // === Dynamische Skalierung & Zentrierung ===
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x,size.y,size.z);
+  const scaleFactor = 1.5 / maxDim; // skaliert Avatar proportional auf Sichtfeld
+  model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+  const center = box.getCenter(new THREE.Vector3());
+  model.position.sub(center); // zentrieren
+  scene.add(model);
+  loadingText.style.display="none";
+  animate();
+}, undefined, err=>{
+  console.error("Fehler beim Laden des Modells:",err);
+  loadingText.textContent="Fehler beim Laden des Avatars.";
+});
 
-    // Morph Target jawOpen finden
-    model.traverse(c=>{
-      if(c.isMesh && c.morphTargetDictionary){
-        jawDict = c.morphTargetDictionary;
-        jawInfluences = c.morphTargetInfluences;
-        if("jawOpen" in jawDict) jawIndex=jawDict["jawOpen"];
-      }
-    });
-
-    loadingText.style.display="none";
-    animate();
-  },
-  undefined,
-  (err)=>{ console.error("Fehler beim Laden des Modells:",err); loadingText.textContent="Fehler beim Laden des Avatar."; }
-);
-
-// =======================
-// Basisrotation / Position
-// =======================
-let baseRotY=0, baseRotX=0, baseY=0;
-
+// === Animation ===
 function animate(){
   requestAnimationFrame(animate);
   if(model){
@@ -156,26 +144,17 @@ function animate(){
       model.rotation.y = baseRotY + Math.sin(Date.now()*0.0015)*0.04;
       model.rotation.x = baseRotX + Math.sin(Date.now()*0.0019)*0.025;
       model.position.y = baseY + Math.sin(Date.now()*0.01)*0.004;
-    } else {
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY, 0.05);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.05);
-      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.05);
-    }
-
-    // Kieferbewegung
-    if(Array.isArray(jawInfluences) && jawIndex!==null && talking){
-      const env = Math.sin(Date.now()*0.01)*0.5 + 0.5;
-      jawInfluences[jawIndex] = THREE.MathUtils.lerp(jawInfluences[jawIndex], env*0.5, 0.3);
+    }else{
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY,0.05);
+      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX,0.05);
+      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY,0.05);
     }
   }
   renderer.render(scene,camera);
 }
 
-// =======================
-// Fenstergröße anpassen
-// =======================
 window.addEventListener("resize", ()=>{
-  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.aspect=window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth,window.innerHeight);
 });
@@ -207,7 +186,7 @@ if("webkitSpeechRecognition" in window){
     }catch(e){ console.error("Fehler bei /ask:",e); }
   };
 
-  recognition.onend=()=>{recognizing=false; micBtn.style.background="#222";}
+  recognition.onend=()=>{ recognizing=false; micBtn.style.background="#222"; }
 }else{
   micNotice.textContent="🎤 Sprachsteuerung wird im Browser nicht unterstützt. Bitte Chrome/Edge nutzen.";
 }
@@ -245,7 +224,6 @@ function speak(text){
   speechSynthesis.speak(utter);
 }
 
-// Voices laden
 if(typeof speechSynthesis!=="undefined" && speechSynthesis.onvoiceschanged!==undefined){
   speechSynthesis.onvoiceschanged=getMaleVoice;
 }
