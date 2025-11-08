@@ -181,7 +181,7 @@ if("webkitSpeechRecognition" in window){
         body:JSON.stringify({text})
       });
       const data = await resp.json();
-      speak(data.answer);
+      speakWithEdgeFallback(data.answer);
     }catch(e){ console.error("Fehler bei /ask:",e); }
   };
 
@@ -202,12 +202,11 @@ micBtn.onclick=()=>{
 };
 
 // =======================
-// Stimme & Begrüßung (Edge-kompatibel mit Fallback)
+// Stimme & Begrüßung (Edge-Fallback)
 // =======================
 let maleVoice = null;
 let greeted = false;
 
-// Stimme wählen
 function selectVoice(){
   const voices = speechSynthesis.getVoices();
   maleVoice = voices.find(v=>/male|mann|stefan|markus|male/i.test(v.name)) ||
@@ -215,42 +214,44 @@ function selectVoice(){
               voices[0] || null;
 }
 
-// Sprechen
 function speak(text){
-  if(!text) return;
+  if(!text || !maleVoice) return;
   const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = 'de-DE';
+  utter.lang = "de-DE";
   utter.rate = 0.95;
   utter.pitch = 0.6;
   utter.voice = maleVoice;
   utter.volume = 0.6;
-  utter.onstart = ()=>{ talking = true; };
-  utter.onend = ()=>{ talking = false; };
+  utter.onstart=()=>{ talking=true; };
+  utter.onend=()=>{ talking=false; };
   speechSynthesis.speak(utter);
 }
 
-// Begrüßung mit Edge-Fallback
+// ⬇️ Edge-Fallback
+function speakWithEdgeFallback(text){
+  if(!text) return;
+
+  if(!maleVoice || speechSynthesis.getVoices().length === 0){
+    // Stimmen noch nicht geladen → kurz warten
+    setTimeout(()=>{
+      selectVoice();
+      speakWithEdgeFallback(text);
+    }, 1500);
+    return;
+  }
+  speak(text);
+}
+
+// Begrüßung bei erster Interaktion
 window.addEventListener("click", ()=>{
   if(!greeted){
     greeted = true;
-    selectVoice();
-
     const greetingText = "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?";
-
-    // ⏳ Fallback für Edge: warte kurz, bis Stimmen verfügbar
-    if(!maleVoice || speechSynthesis.getVoices().length === 0){
-      console.log("⏳ Warte auf Stimmen (Edge-Fallback)...");
-      setTimeout(()=>{
-        selectVoice();
-        speak(greetingText);
-      }, 1500);
-    } else {
-      speak(greetingText);
-    }
+    speakWithEdgeFallback(greetingText);
   }
 });
 
-// Nachladen der Stimmen bei Änderung
+// Stimmen neu laden, falls sich Liste ändert
 speechSynthesis.onvoiceschanged = selectVoice;
 </script>
 </body>
