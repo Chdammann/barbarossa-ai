@@ -202,14 +202,22 @@ micBtn.onclick=()=>{
 };
 
 // =======================
-// Stimme & Begrüßung (Edge-kompatibel)
+// Stimme & Begrüßung (Edge-kompatibel mit Fallback)
 // =======================
 let maleVoice = null;
 let greeted = false;
 
-// Funktion zum Sprechen
+// Stimme wählen
+function selectVoice(){
+  const voices = speechSynthesis.getVoices();
+  maleVoice = voices.find(v=>/male|mann|stefan|markus|male/i.test(v.name)) ||
+              voices.find(v=>v.lang.startsWith("de")) ||
+              voices[0] || null;
+}
+
+// Sprechen
 function speak(text){
-  if(!text || !maleVoice) return;
+  if(!text) return;
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = 'de-DE';
   utter.rate = 0.95;
@@ -221,35 +229,29 @@ function speak(text){
   speechSynthesis.speak(utter);
 }
 
-// Begrüßung bei erster Interaktion
+// Begrüßung mit Edge-Fallback
 window.addEventListener("click", ()=>{
   if(!greeted){
     greeted = true;
+    selectVoice();
 
-    // Stimmen nach erstem Klick laden
-    const voices = speechSynthesis.getVoices();
-    maleVoice = voices.find(v=>/male|mann|stefan|markus|male/i.test(v.name)) ||
-                voices.find(v=>v.lang.startsWith("de")) ||
-                voices[0] || null;
+    const greetingText = "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?";
 
-    if(!maleVoice){
-      speechSynthesis.onvoiceschanged = ()=>{
-        const voices2 = speechSynthesis.getVoices();
-        maleVoice = voices2.find(v=>/male|mann|stefan|markus|male/i.test(v.name)) ||
-                    voices2.find(v=>v.lang.startsWith("de")) ||
-                    voices2[0] || null;
-        speakGreeting();
-      };
+    // ⏳ Fallback für Edge: warte kurz, bis Stimmen verfügbar
+    if(!maleVoice || speechSynthesis.getVoices().length === 0){
+      console.log("⏳ Warte auf Stimmen (Edge-Fallback)...");
+      setTimeout(()=>{
+        selectVoice();
+        speak(greetingText);
+      }, 1500);
     } else {
-      speakGreeting();
-    }
-
-    function speakGreeting(){
-      const greetingText = "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?";
       speak(greetingText);
     }
   }
 });
+
+// Nachladen der Stimmen bei Änderung
+speechSynthesis.onvoiceschanged = selectVoice;
 </script>
 </body>
 </html>
