@@ -120,16 +120,14 @@ const loadingText = document.getElementById("loading");
 
 loader.load("./avatar.glb", gltf=>{
   model=gltf.scene;
-  // === Dynamische Skalierung & Zentrierung ===
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x,size.y,size.z);
-  const scaleFactor = 1.5 / maxDim; // skaliert Avatar proportional auf Sichtfeld
+  const scaleFactor = 1.5 / maxDim;
   model.scale.set(scaleFactor, scaleFactor, scaleFactor);
   const center = box.getCenter(new THREE.Vector3());
-  model.position.sub(center); // zentrieren
-  // === 90 Grad Drehung nach rechts ===
-  model.rotation.y = -Math.PI/2; // jetzt frontal
+  model.position.sub(center);
+  model.rotation.y = -Math.PI/2;
   scene.add(model);
   loadingText.style.display="none";
   animate();
@@ -138,7 +136,6 @@ loader.load("./avatar.glb", gltf=>{
   loadingText.textContent="Fehler beim Laden des Avatars.";
 });
 
-// === Animation ===
 function animate(){
   requestAnimationFrame(animate);
   if(model){
@@ -160,6 +157,7 @@ window.addEventListener("resize", ()=>{
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth,window.innerHeight);
 });
+
 
 // =======================
 // Sprachsteuerung & Mikrofon
@@ -205,39 +203,49 @@ micBtn.onclick=()=>{
 };
 
 // =======================
-// Stimme & sprechen
+// Stimme & sprechen (Edge-kompatibel)
 // =======================
-function getMaleVoice(){
+let maleVoice = null;
+
+// Stimmen laden und auf Änderungen reagieren
+function loadVoices(){
   const voices = speechSynthesis.getVoices();
-  return voices.find(v=>/male|mann|stefan|markus|male/i.test(v.name)) ||
-         voices.find(v=>v.lang.startsWith("de")) ||
-         voices[0]||null;
+  maleVoice = voices.find(v=>/male|mann|stefan|markus|male/i.test(v.name)) ||
+              voices.find(v=>v.lang.startsWith("de")) ||
+              voices[0]||null;
 }
+loadVoices();
+speechSynthesis.onvoiceschanged = loadVoices;
 
 function speak(text){
-  if(!text) return;
+  if(!text || !maleVoice) return;
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang="de-DE";
   utter.rate=0.95;
   utter.pitch=0.6;
-  utter.voice = getMaleVoice();
-  utter.volume = 0.6; // mittlere Lautstärke vor Sprechen
+  utter.voice = maleVoice;
+  utter.volume = 0.6;
   utter.onstart=()=>{ talking=true; };
   utter.onend=()=>{ talking=false; };
   speechSynthesis.speak(utter);
 }
 
-if(typeof speechSynthesis!=="undefined" && speechSynthesis.onvoiceschanged!==undefined){
-  speechSynthesis.onvoiceschanged=getMaleVoice;
-}
-
 // =======================
-// Begrüßung bei erster Berührung
+// Begrüßung bei erster Berührung (Edge-kompatibel)
 // =======================
 window.addEventListener("click", ()=>{
   if(!greeted){
     greeted=true;
-    speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
+    const greetingText = "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?";
+    
+    function trySpeak(){
+      if(maleVoice){
+        speak(greetingText);
+      } else {
+        setTimeout(trySpeak, 100);
+      }
+    }
+    trySpeak();
   }
 });
 </script>
