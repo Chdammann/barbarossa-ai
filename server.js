@@ -40,7 +40,7 @@ app.post("/ask", async (req, res) => {
         { role: "user", content: userText },
       ],
       temperature: 0.8,
-      max_tokens: 150,
+      max_tokens: 200,
     });
 
     const answer = completion.choices[0].message.content;
@@ -62,6 +62,7 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server läuft auf http://localhost:${PORT}`);
 });
+
 
 
 
