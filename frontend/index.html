@@ -190,19 +190,8 @@ if("webkitSpeechRecognition" in window){
   micNotice.textContent="🎤 Sprachsteuerung wird im Browser nicht unterstützt. Bitte Chrome/Edge nutzen.";
 }
 
-micBtn.onclick=()=>{
-  if(!recognition) return;
-  if(recognizing){
-    recognition.stop();
-  }else{
-    recognition.start();
-    micBtn.style.background="#555";
-  }
-  recognizing=!recognizing;
-};
-
 // =======================
-// Stimme & Begrüßung (Edge-Fallback)
+// Stimme & Begrüßung (Edge-kompatibel)
 // =======================
 let maleVoice = null;
 let greeted = false;
@@ -227,12 +216,11 @@ function speak(text){
   speechSynthesis.speak(utter);
 }
 
-// ⬇️ Edge-Fallback
+// ⬇️ Edge-Fallback: Stimmen warten, falls noch nicht geladen
 function speakWithEdgeFallback(text){
   if(!text) return;
 
   if(!maleVoice || speechSynthesis.getVoices().length === 0){
-    // Stimmen noch nicht geladen → kurz warten
     setTimeout(()=>{
       selectVoice();
       speakWithEdgeFallback(text);
@@ -242,14 +230,28 @@ function speakWithEdgeFallback(text){
   speak(text);
 }
 
-// Begrüßung bei erster Interaktion
-window.addEventListener("click", ()=>{
+// =======================
+// Mikrofon-Button & Begrüßung
+// =======================
+micBtn.onclick = () => {
+  if(!recognition) return;
+
+  // Erstes Klick → Begrüßung
   if(!greeted){
     greeted = true;
     const greetingText = "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?";
     speakWithEdgeFallback(greetingText);
   }
-});
+
+  // Spracherkennung starten/stoppen
+  if(recognizing){
+    recognition.stop();
+  }else{
+    recognition.start();
+    micBtn.style.background="#555";
+  }
+  recognizing = !recognizing;
+};
 
 // Stimmen neu laden, falls sich Liste ändert
 speechSynthesis.onvoiceschanged = selectVoice;
