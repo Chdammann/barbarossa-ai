@@ -97,14 +97,14 @@ footer a:hover { text-decoration: underline; }
 <script>
 let model, talking=false, greeted=false;
 
-// --- Kopf-Neigung nach Laden ---
+// Kopf-Neigung nach Laden
 let baseRotY = -0.35;
 let baseRotX = 0.25;
 let targetRotY = baseRotY;
 let targetRotX = baseRotX;
 let baseY = 0;
 
-// --- Ease-in/Ease-out Aufrichten ---
+// Kopf-Aufrichten
 let rising = false;
 let riseStartTime = 0;
 const riseDuration = 1200;
@@ -148,7 +148,6 @@ loader.load("./avatar.glb", gltf=>{
   loadingText.textContent="Fehler beim Laden des Avatars.";
 });
 
-// --- Animation ---
 function animate(){
   requestAnimationFrame(animate);
   if(model){
@@ -181,15 +180,12 @@ window.addEventListener("resize", ()=>{
   renderer.setSize(window.innerWidth,window.innerHeight);
 });
 
-// --- Mikrofon & Sprachsteuerung (Edge + Chrome) ---
 const micBtn = document.getElementById("micBtn");
 const micNotice = document.getElementById("micNotice");
 let recognizing=false, recognition;
 
-// Prüfen auf Edge oder Chrome API
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-if(SpeechRecognition){
-  recognition = new SpeechRecognition();
+if("webkitSpeechRecognition" in window){
+  recognition = new webkitSpeechRecognition();
   recognition.lang="de-DE";
   recognition.continuous=false;
   recognition.interimResults=false;
@@ -213,13 +209,18 @@ if(SpeechRecognition){
   micNotice.textContent="🎤 Sprachsteuerung wird im Browser nicht unterstützt. Bitte Chrome/Edge nutzen.";
 }
 
-// --- Stimme & sprechen ---
+// Stimme & sprechen (Edge-kompatibel)
 let maleVoice = null;
 function loadVoices(){
   const voices = speechSynthesis.getVoices();
   maleVoice = voices.find(v=>/male|mann|stefan|markus/i.test(v.name)) ||
               voices.find(v=>v.lang.startsWith("de")) ||
               voices[0]||null;
+  // Edge: speechSynthesis muss initialisiert werden
+  if(!speechSynthesis.speaking && maleVoice){
+    const testUtter = new SpeechSynthesisUtterance("");
+    speechSynthesis.speak(testUtter);
+  }
 }
 speechSynthesis.onvoiceschanged = loadVoices;
 loadVoices();
@@ -237,7 +238,7 @@ function speak(text){
   speechSynthesis.speak(utter);
 }
 
-// --- Begrüßung & Mikrofon getrennt mit Kopfaufrichten ---
+// Begrüßung & Mikrofon
 micBtn.onclick = () => {
   if(!recognition) return;
 
@@ -251,10 +252,10 @@ micBtn.onclick = () => {
 
   if(recognizing){
     recognition.stop();
-    micBtn.style.background = "#222";
+    micBtn.style.background="#222";
   } else {
     recognition.start();
-    micBtn.style.background = "#555";
+    micBtn.style.background="#555";
   }
   recognizing = !recognizing;
 };
