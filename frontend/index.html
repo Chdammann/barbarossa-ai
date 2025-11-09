@@ -95,7 +95,7 @@ footer a:hover { text-decoration: underline; }
 <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-let model, talking=false;
+let model, talking=false, greeted=false;
 let baseRotY=0, baseRotX=0, baseY=0;
 
 const scene = new THREE.Scene();
@@ -120,6 +120,7 @@ const loadingText = document.getElementById("loading");
 
 loader.load("./avatar.glb", gltf=>{
   model=gltf.scene;
+  // === Dynamische Skalierung & Zentrierung ===
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x,size.y,size.z);
@@ -136,6 +137,7 @@ loader.load("./avatar.glb", gltf=>{
   loadingText.textContent="Fehler beim Laden des Avatars.";
 });
 
+// === Animation ===
 function animate(){
   requestAnimationFrame(animate);
   if(model){
@@ -181,7 +183,7 @@ if("webkitSpeechRecognition" in window){
         body:JSON.stringify({text})
       });
       const data = await resp.json();
-      speakWithEdgeFallback(data.answer);
+      speak(data.answer);
     }catch(e){ console.error("Fehler bei /ask:",e); }
   };
 
@@ -191,24 +193,24 @@ if("webkitSpeechRecognition" in window){
 }
 
 // =======================
-// Stimme & Begrüßung (Edge-kompatibel)
+// Stimme & sprechen
 // =======================
 let maleVoice = null;
-let greeted = false;
-
-function selectVoice(){
+function loadVoices(){
   const voices = speechSynthesis.getVoices();
-  maleVoice = voices.find(v=>/male|mann|stefan|markus|male/i.test(v.name)) ||
+  maleVoice = voices.find(v=>/male|mann|stefan|markus/i.test(v.name)) ||
               voices.find(v=>v.lang.startsWith("de")) ||
-              voices[0] || null;
+              voices[0]||null;
 }
+speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
 
 function speak(text){
-  if(!text || !maleVoice) return;
+  if(!text) return;
   const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = "de-DE";
-  utter.rate = 0.95;
-  utter.pitch = 0.6;
+  utter.lang="de-DE";
+  utter.rate=0.95;
+  utter.pitch=0.6;
   utter.voice = maleVoice;
   utter.volume = 0.6;
   utter.onstart=()=>{ talking=true; };
@@ -216,45 +218,29 @@ function speak(text){
   speechSynthesis.speak(utter);
 }
 
-// ⬇️ Edge-Fallback: Stimmen warten, falls noch nicht geladen
-function speakWithEdgeFallback(text){
-  if(!text) return;
-
-  if(!maleVoice || speechSynthesis.getVoices().length === 0){
-    setTimeout(()=>{
-      selectVoice();
-      speakWithEdgeFallback(text);
-    }, 1500);
-    return;
-  }
-  speak(text);
-}
-
 // =======================
-// Mikrofon-Button & Begrüßung
+// Begrüßung & Mikrofon getrennt
 // =======================
 micBtn.onclick = () => {
-  if(!recognition) return;
+  if (!recognition) return;
 
-  // Erstes Klick → Begrüßung
-  if(!greeted){
+  // Begrüßung nur beim allerersten Klick
+  if (!greeted) {
     greeted = true;
-    const greetingText = "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?";
-    speakWithEdgeFallback(greetingText);
+    speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
+    return; // verhindert, dass Mikro gleichzeitig läuft
   }
 
-  // Spracherkennung starten/stoppen
-  if(recognizing){
+  // Danach: normales Mikrofonverhalten
+  if (recognizing) {
     recognition.stop();
-  }else{
+    micBtn.style.background = "#222";
+  } else {
     recognition.start();
-    micBtn.style.background="#555";
+    micBtn.style.background = "#555";
   }
   recognizing = !recognizing;
 };
-
-// Stimmen neu laden, falls sich Liste ändert
-speechSynthesis.onvoiceschanged = selectVoice;
 </script>
 </body>
 </html>
