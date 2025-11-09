@@ -96,7 +96,13 @@ footer a:hover { text-decoration: underline; }
 
 <script>
 let model, talking=false, greeted=false;
-let baseRotY=0, baseRotX=0, baseY=0;
+
+// --- Kopf-Neigung nach Laden ---
+let baseRotY = -0.2; // leicht nach links
+let baseRotX = 0.1;  // leicht nach unten
+let targetRotY = baseRotY;
+let targetRotX = baseRotX;
+let baseY = 0;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -120,7 +126,6 @@ const loadingText = document.getElementById("loading");
 
 loader.load("./avatar.glb", gltf=>{
   model=gltf.scene;
-  // === Dynamische Skalierung & Zentrierung ===
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x,size.y,size.z);
@@ -128,7 +133,8 @@ loader.load("./avatar.glb", gltf=>{
   model.scale.set(scaleFactor, scaleFactor, scaleFactor);
   const center = box.getCenter(new THREE.Vector3());
   model.position.sub(center);
-  model.rotation.y = -Math.PI/2;
+  model.rotation.y = baseRotY - Math.PI/2;
+  model.rotation.x = baseRotX;
   scene.add(model);
   loadingText.style.display="none";
   animate();
@@ -137,18 +143,18 @@ loader.load("./avatar.glb", gltf=>{
   loadingText.textContent="Fehler beim Laden des Avatars.";
 });
 
-// === Animation ===
+// --- Animation ---
 function animate(){
   requestAnimationFrame(animate);
   if(model){
     if(talking){
-      model.rotation.y = baseRotY + Math.sin(Date.now()*0.0015)*0.04 - Math.PI/2;
-      model.rotation.x = baseRotX + Math.sin(Date.now()*0.0019)*0.025;
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(Date.now()*0.0015)*0.04 - Math.PI/2, 0.1);
+      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(Date.now()*0.0019)*0.025, 0.1);
       model.position.y = baseY + Math.sin(Date.now()*0.01)*0.004;
-    }else{
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY - Math.PI/2,0.05);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX,0.05);
-      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY,0.05);
+    } else {
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.05);
+      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.05);
+      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.05);
     }
   }
   renderer.render(scene,camera);
@@ -160,9 +166,7 @@ window.addEventListener("resize", ()=>{
   renderer.setSize(window.innerWidth,window.innerHeight);
 });
 
-// =======================
-// Sprachsteuerung & Mikrofon
-// =======================
+// --- Mikrofon & Sprachsteuerung ---
 const micBtn = document.getElementById("micBtn");
 const micNotice = document.getElementById("micNotice");
 let recognizing=false, recognition;
@@ -192,9 +196,7 @@ if("webkitSpeechRecognition" in window){
   micNotice.textContent="🎤 Sprachsteuerung wird im Browser nicht unterstützt. Bitte Chrome/Edge nutzen.";
 }
 
-// =======================
-// Stimme & sprechen
-// =======================
+// --- Stimme & sprechen ---
 let maleVoice = null;
 function loadVoices(){
   const voices = speechSynthesis.getVoices();
@@ -206,7 +208,7 @@ speechSynthesis.onvoiceschanged = loadVoices;
 loadVoices();
 
 function speak(text){
-  if(!text) return;
+  if(!text || !maleVoice) return;
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang="de-DE";
   utter.rate=0.95;
@@ -218,21 +220,21 @@ function speak(text){
   speechSynthesis.speak(utter);
 }
 
-// =======================
-// Begrüßung & Mikrofon getrennt
-// =======================
+// --- Begrüßung & Mikrofon getrennt mit Kopfaufrichten ---
 micBtn.onclick = () => {
-  if (!recognition) return;
+  if(!recognition) return;
 
-  // Begrüßung nur beim allerersten Klick
-  if (!greeted) {
+  // Erstes Tippen: Kopf aufrichten + Begrüßung
+  if(!greeted){
     greeted = true;
+    targetRotY = 0;
+    targetRotX = 0;
     speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
-    return; // verhindert, dass Mikro gleichzeitig läuft
+    return; // Mikrofon startet erst beim nächsten Klick
   }
 
   // Danach: normales Mikrofonverhalten
-  if (recognizing) {
+  if(recognizing){
     recognition.stop();
     micBtn.style.background = "#222";
   } else {
