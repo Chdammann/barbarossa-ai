@@ -90,6 +90,7 @@ footer a:hover { text-decoration: underline; }
 © 2025 <a href="https://christoph-dammann.de" target="_blank">Dr. Christoph Dammann</a>
 </footer>
 
+<!-- Three.js -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/examples/js/loaders/GLTFLoader.js"></script>
 
@@ -103,7 +104,7 @@ let targetRotY = baseRotY;
 let targetRotX = baseRotX;
 let baseY = 0;
 
-// Kopf aufrichten
+// Kopf aufrichten beim ersten Tipp
 let rising = false;
 let riseStartTime = 0;
 const riseDuration = 1200;
@@ -141,10 +142,6 @@ loader.load("./avatar.glb", gltf=>{
   model.rotation.x = baseRotX;
   scene.add(model);
   loadingText.style.display="none";
-
-  // Dummy Utterance für Edge TTS aktivieren
-  speechSynthesis.speak(new SpeechSynthesisUtterance(""));
-
   animate();
 }, undefined, err=>{
   console.error("Fehler beim Laden des Modells:",err);
@@ -156,10 +153,10 @@ function animate(){
   if(model){
     if(rising){
       const t = (performance.now() - riseStartTime) / riseDuration;
-      const easeT = t<0?0:(t>1?1:(-Math.cos(Math.PI*t)/2+0.5));
-      targetRotY = baseRotY*(1-easeT);
-      targetRotX = baseRotX*(1-easeT);
-      if(t>=1) rising=false;
+      const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
+      targetRotY = baseRotY * (1 - easeT);
+      targetRotX = baseRotX * (1 - easeT);
+      if(t >= 1) rising = false;
     }
 
     if(talking){
@@ -170,8 +167,8 @@ function animate(){
     } else {
       model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
-      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z||0,0,0.02);
-      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY,0.02);
+      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
+      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.02);
     }
   }
   renderer.render(scene,camera);
@@ -180,7 +177,7 @@ function animate(){
 window.addEventListener("resize", ()=>{
   camera.aspect=window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(window.innerWidth,window.innerHeight);
 });
 
 const micBtn = document.getElementById("micBtn");
@@ -212,7 +209,7 @@ if("webkitSpeechRecognition" in window){
   micNotice.textContent="🎤 Sprachsteuerung wird im Browser nicht unterstützt. Bitte Chrome/Edge nutzen.";
 }
 
-// --- Stimme & Sprechen ---
+// Stimme & Sprechen
 let maleVoice = null;
 function loadVoices(){
   const voices = speechSynthesis.getVoices();
@@ -236,7 +233,7 @@ function speak(text){
   speechSynthesis.speak(utter);
 }
 
-// --- Begrüßung & Mikrofon getrennt ---
+// Begrüßung & Mikrofon
 micBtn.onclick = () => {
   if(!recognition) return;
 
