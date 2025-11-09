@@ -97,9 +97,9 @@ footer a:hover { text-decoration: underline; }
 <script>
 let model, talking=false, greeted=false;
 
-// --- Kopf-Neigung nach Laden (stärker) ---
-let baseRotY = -0.35; // stärker nach links
-let baseRotX = 0.25;  // stärker nach unten
+// --- Kopf-Neigung nach Laden ---
+let baseRotY = -0.35;
+let baseRotX = 0.25;
 let targetRotY = baseRotY;
 let targetRotX = baseRotX;
 let baseY = 0;
@@ -107,7 +107,7 @@ let baseY = 0;
 // --- Ease-in/Ease-out Aufrichten ---
 let rising = false;
 let riseStartTime = 0;
-const riseDuration = 1200; // Dauer in ms
+const riseDuration = 1200;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -152,7 +152,6 @@ loader.load("./avatar.glb", gltf=>{
 function animate(){
   requestAnimationFrame(animate);
   if(model){
-    // Ease-in/Ease-out Kopfaufrichten
     if(rising){
       const t = (performance.now() - riseStartTime) / riseDuration;
       const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
@@ -162,15 +161,14 @@ function animate(){
     }
 
     if(talking){
-      // Kopfbewegungen beim Sprechen: leichte Vorwärts/Seitwärtsneigung + reduzierte Auf/Ab
       model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(Date.now()*0.0015)*0.03 - Math.PI/2, 0.08);
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(Date.now()*0.0019)*0.015, 0.08);
-      model.rotation.z = Math.sin(Date.now()*0.0012)*0.015; // kleine Seitwärtsneigung
-      model.position.y = baseY + Math.sin(Date.now()*0.01)*0.002; // Auf/Ab reduziert
+      model.rotation.z = Math.sin(Date.now()*0.0012)*0.015;
+      model.position.y = baseY + Math.sin(Date.now()*0.01)*0.002;
     } else {
       model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
-      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02); // Seitwärts zurücksetzen
+      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
       model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.02);
     }
   }
@@ -183,13 +181,15 @@ window.addEventListener("resize", ()=>{
   renderer.setSize(window.innerWidth,window.innerHeight);
 });
 
-// --- Mikrofon & Sprachsteuerung ---
+// --- Mikrofon & Sprachsteuerung (Edge + Chrome) ---
 const micBtn = document.getElementById("micBtn");
 const micNotice = document.getElementById("micNotice");
 let recognizing=false, recognition;
 
-if("webkitSpeechRecognition" in window){
-  recognition = new webkitSpeechRecognition();
+// Prüfen auf Edge oder Chrome API
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if(SpeechRecognition){
+  recognition = new SpeechRecognition();
   recognition.lang="de-DE";
   recognition.continuous=false;
   recognition.interimResults=false;
@@ -241,16 +241,14 @@ function speak(text){
 micBtn.onclick = () => {
   if(!recognition) return;
 
-  // Erstes Tippen: Kopf aufrichten + Begrüßung
   if(!greeted){
     greeted = true;
     rising = true;
     riseStartTime = performance.now();
     speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
-    return; // Mikrofon startet erst beim nächsten Klick
+    return;
   }
 
-  // Danach: normales Mikrofonverhalten
   if(recognizing){
     recognition.stop();
     micBtn.style.background = "#222";
