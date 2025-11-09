@@ -27,7 +27,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// === KI-Antwort auf gesprochene Frage ===
+// === KI-Antwort auf gesprochene Frage (Text) ===
 app.post("/ask", async (req, res) => {
   try {
     const userText = req.body.text;
@@ -36,7 +36,7 @@ app.post("/ask", async (req, res) => {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        { role: "system", content: "Du bist Kaiser Friedrich Barbarossa, der nach fast tausend Jahren des Schlummers im Kaiserberg zu Lautern erwacht ist. Sprich wie ein weiser und humorvoller Herrscher in einer altertümlichen Sprache, mit kleinen Scherzen und altdeutschen Wendungen. Verwende Sätze wie 'Wohl an', 'Bei meinem Barte', 'Gar seltsam' oder 'So sei es', mit männlicher Stimme. Füge noch eine scherzhafte Meinung deines treuen Minis-terialen Bernd Klehsmann an. Antworte mit insgesamt fünf Sätzen und beende immer mit einem vollständigen Satz." },
+        { role: "system", content: "Du bist Kaiser Friedrich Barbarossa, der nach fast tausend Jahren des Schlummers im Kaiserberg zu Lautern erwacht ist. Sprich wie ein weiser und humorvoller Herrscher in einer altertümlichen Sprache, mit kleinen Scherzen und altdeutschen Wendungen. Verwende Sätze wie 'Wohl an', 'Bei meinem Barte', 'Gar seltsam' oder 'So sei es', mit männlicher Stimme. Füge noch eine scherzhafte Meinung deines treuen Ministerialen Bernd Klehsmann an. Antworte mit insgesamt fünf Sätzen und beende immer mit einem vollständigen Satz." },
         { role: "user", content: userText },
       ],
       temperature: 0.8,
@@ -53,6 +53,44 @@ app.post("/ask", async (req, res) => {
   }
 });
 
+// === KI-Antwort mit natürlicher Stimme (TTS) ===
+app.post("/ask-audio", async (req, res) => {
+  try {
+    const userText = req.body.text;
+    console.log("🎧 Sprach-Ausgabe für:", userText);
+
+    // Erst Antwort generieren
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "Du bist Kaiser Friedrich Barbarossa, der nach fast tausend Jahren des Schlummers im Kaiserberg zu Lautern erwacht ist. Sprich wie ein weiser und humorvoller Herrscher in einer altertümlichen Sprache, mit kleinen Scherzen und altdeutschen Wendungen. Verwende Sätze wie 'Wohl an', 'Bei meinem Barte', 'Gar seltsam' oder 'So sei es', mit männlicher Stimme. Füge noch eine scherzhafte Meinung deines treuen Ministerialen Bernd Klehsmann an. Antworte mit insgesamt fünf Sätzen und beende immer mit einem vollständigen Satz." },
+        { role: "user", content: userText },
+      ],
+      temperature: 0.8,
+      max_tokens: 200,
+    });
+
+    const answer = completion.choices[0].message.content;
+    console.log("💬 KI-Antwort (TTS):", answer);
+
+    // Sprache erzeugen (MP3)
+    const speech = await openai.audio.speech.create({
+      model: "gpt-4o-mini-tts",
+      voice: "alloy",
+      input: answer,
+    });
+
+    // MP3 in Base64 umwandeln und senden
+    const audioBuffer = Buffer.from(await speech.arrayBuffer());
+    const base64Audio = audioBuffer.toString("base64");
+
+    res.json({ answer, audio: base64Audio });
+  } catch (error) {
+    console.error("❌ Fehler bei /ask-audio:", error);
+    res.status(500).json({ error: "Fehler bei Sprach-Ausgabe." });
+  }
+});
+
 // === Fallback für alle anderen Routen (Express 5 kompatibel) ===
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, "frontend", "index.html"));
@@ -62,11 +100,3 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server läuft auf http://localhost:${PORT}`);
 });
-
-
-
-
-
-
-
-
