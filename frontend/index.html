@@ -96,18 +96,9 @@ footer a:hover { text-decoration: underline; }
 
 <script>
 let model, talking=false, greeted=false;
-
-// --- Kopf-Neigung nach Laden (stärker) ---
-let baseRotY = -0.35; // stärker nach links
-let baseRotX = 0.25;  // stärker nach unten
-let targetRotY = baseRotY;
-let targetRotX = baseRotX;
-let baseY = 0;
-
-// --- Ease-in/Ease-out Aufrichten ---
-let rising = false;
-let riseStartTime = 0;
-const riseDuration = 1200; // Dauer in ms
+let baseRotY=0, baseRotX=0, baseY=0;
+let targetRotX=0, targetRotY=0, targetY=0;
+let easing=0.03; // für sanftes Aufrichten
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -138,8 +129,15 @@ loader.load("./avatar.glb", gltf=>{
   model.scale.set(scaleFactor, scaleFactor, scaleFactor);
   const center = box.getCenter(new THREE.Vector3());
   model.position.sub(center);
+  // === Anfangsneigung: stärker links/unten
+  baseRotY = -0.3; 
+  baseRotX = 0.3;  
   model.rotation.y = baseRotY - Math.PI/2;
   model.rotation.x = baseRotX;
+  model.position.y = baseY - 0.07;
+  targetRotX = 0;
+  targetRotY = 0;
+  targetY = 0;
   scene.add(model);
   loadingText.style.display="none";
   animate();
@@ -148,30 +146,20 @@ loader.load("./avatar.glb", gltf=>{
   loadingText.textContent="Fehler beim Laden des Avatars.";
 });
 
-// --- Animation ---
+// === Animation ===
 function animate(){
   requestAnimationFrame(animate);
   if(model){
-    // Ease-in/Ease-out Kopfaufrichten
-    if(rising){
-      const t = (performance.now() - riseStartTime) / riseDuration;
-      const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
-      targetRotY = baseRotY * (1 - easeT);
-      targetRotX = baseRotX * (1 - easeT);
-      if(t >= 1) rising = false;
-    }
+    // sanftes Aufrichten
+    model.rotation.x += (targetRotX - model.rotation.x) * easing;
+    model.rotation.y += (targetRotY - model.rotation.y) * easing;
+    model.position.y += (targetY - model.position.y) * easing;
 
+    // kleine Bewegungen beim Sprechen
     if(talking){
-      // Kopfbewegungen beim Sprechen: leichte Vorwärts/Seitwärtsneigung + reduzierte Auf/Ab
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(Date.now()*0.0015)*0.03 - Math.PI/2, 0.08);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(Date.now()*0.0019)*0.015, 0.08);
-      model.rotation.z = Math.sin(Date.now()*0.0012)*0.015; // kleine Seitwärtsneigung
-      model.position.y = baseY + Math.sin(Date.now()*0.01)*0.002; // Auf/Ab reduziert
-    } else {
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
-      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02); // Seitwärts zurücksetzen
-      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.02);
+      model.rotation.y += Math.sin(Date.now()*0.0015)*0.04;
+      model.rotation.x += Math.sin(Date.now()*0.0019)*0.015;
+      model.position.y += Math.sin(Date.now()*0.01)*0.002;
     }
   }
   renderer.render(scene,camera);
@@ -183,7 +171,9 @@ window.addEventListener("resize", ()=>{
   renderer.setSize(window.innerWidth,window.innerHeight);
 });
 
-// --- Mikrofon & Sprachsteuerung ---
+// =======================
+// Sprachsteuerung & Mikrofon
+// =======================
 const micBtn = document.getElementById("micBtn");
 const micNotice = document.getElementById("micNotice");
 let recognizing=false, recognition;
@@ -198,68 +188,64 @@ if("webkitSpeechRecognition" in window){
     const text = event.results[0][0].transcript;
     console.log("🎙️ Gesprochen:", text);
     try{
-      const resp = await fetch("/ask", {
+      const resp = await fetch("/ask-audio", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({text})
       });
       const data = await resp.json();
-      speak(data.answer);
-    }catch(e){ console.error("Fehler bei /ask:",e); }
+      playAudio(data.audio);
+      talking=true;
+    }catch(e){ console.error("Fehler bei /ask-audio:",e); }
   };
 
-  recognition.onend=()=>{ recognizing=false; micBtn.style.background="#222"; }
+  recognition.onend=()=>{ recognizing=false; micBtn.style.background="#222"; };
 }else{
   micNotice.textContent="🎤 Sprachsteuerung wird im Browser nicht unterstützt. Bitte Chrome/Edge nutzen.";
 }
 
-// --- Stimme & sprechen ---
-let maleVoice = null;
-function loadVoices(){
-  const voices = speechSynthesis.getVoices();
-  maleVoice = voices.find(v=>/male|mann|stefan|markus/i.test(v.name)) ||
-              voices.find(v=>v.lang.startsWith("de")) ||
-              voices[0]||null;
-}
-speechSynthesis.onvoiceschanged = loadVoices;
-loadVoices();
-
-function speak(text){
-  if(!text || !maleVoice) return;
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang="de-DE";
-  utter.rate=0.95;
-  utter.pitch=0.6;
-  utter.voice = maleVoice;
-  utter.volume = 0.6;
-  utter.onstart=()=>{ talking=true; };
-  utter.onend=()=>{ talking=false; };
-  speechSynthesis.speak(utter);
-}
-
-// --- Begrüßung & Mikrofon getrennt mit Kopfaufrichten ---
-micBtn.onclick = () => {
+micBtn.onclick=()=>{
   if(!recognition) return;
-
-  // Erstes Tippen: Kopf aufrichten + Begrüßung
-  if(!greeted){
-    greeted = true;
-    rising = true;
-    riseStartTime = performance.now();
-    speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
-    return; // Mikrofon startet erst beim nächsten Klick
-  }
-
-  // Danach: normales Mikrofonverhalten
   if(recognizing){
     recognition.stop();
-    micBtn.style.background = "#222";
-  } else {
+  }else{
     recognition.start();
-    micBtn.style.background = "#555";
+    micBtn.style.background="#555";
   }
-  recognizing = !recognizing;
+  recognizing=!recognizing;
 };
+
+// =======================
+// Audio vom Server abspielen
+// =======================
+function playAudio(base64Audio){
+  if(!base64Audio) return;
+  const audio = new Audio("data:audio/mp3;base64,"+base64Audio);
+  audio.onended = ()=>{ talking=false; };
+  audio.play();
+}
+
+// =======================
+// Begrüßung bei erster Berührung
+// =======================
+window.addEventListener("click", async ()=>{
+  if(!greeted){
+    greeted=true;
+    // Zielwerte für sanftes Aufrichten
+    targetRotX = 0;
+    targetRotY = -Math.PI/2;
+    targetY = baseY;
+    try{
+      const resp = await fetch("/ask-audio", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({text:"Begrüßung"})
+      });
+      const data = await resp.json();
+      playAudio(data.audio);
+    }catch(e){ console.error("Fehler bei Begrüßung:",e); }
+  }
+});
 </script>
 </body>
 </html>
