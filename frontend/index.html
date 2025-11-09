@@ -162,12 +162,15 @@ function animate(){
     }
 
     if(talking){
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(Date.now()*0.0015)*0.04 - Math.PI/2, 0.08);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(Date.now()*0.0019)*0.025, 0.08);
-      model.position.y = baseY + Math.sin(Date.now()*0.01)*0.004;
+      // Kopfbewegungen beim Sprechen: leichte Vorwärts/Seitwärtsneigung + reduzierte Auf/Ab
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(Date.now()*0.0015)*0.03 - Math.PI/2, 0.08);
+      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(Date.now()*0.0019)*0.015, 0.08);
+      model.rotation.z = Math.sin(Date.now()*0.0012)*0.015; // kleine Seitwärtsneigung
+      model.position.y = baseY + Math.sin(Date.now()*0.01)*0.002; // Auf/Ab reduziert
     } else {
       model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
+      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02); // Seitwärts zurücksetzen
       model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.02);
     }
   }
