@@ -7,6 +7,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import OpenAI from "openai";
+import fetch from "node-fetch"; // Node 18+ hat fetch, explizit importieren geht auch
 
 dotenv.config(); // .env einlesen
 
@@ -27,20 +28,55 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// === KI-Antwort auf gesprochene Frage ===
+// === Funktion: Wikipedia-Zusammenfassung abrufen (nur 2–3 Sätze) ===
+async function getWikipediaSummary(topic) {
+  try {
+    const response = await fetch(
+      `https://de.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(topic)}`
+    );
+    if (!response.ok) return "";
+
+    const data = await response.json();
+    if (!data.extract) return "";
+
+    // Nur die ersten 2–3 Sätze extrahieren
+    const sentences = data.extract.match(/[^\.!\?]+[\.!\?]+/g) || [];
+    return sentences.slice(0, 3).join(" ");
+  } catch (err) {
+    console.error("❌ Fehler beim Laden von Wikipedia:", err);
+    return "";
+  }
+}
+
+// === KI-Antwort auf gesprochene Frage mit optimierter Wikipedia-Integration ===
 app.post("/ask", async (req, res) => {
   try {
     const userText = req.body.text;
     console.log("🎙️ Eingabe vom Benutzer:", userText);
 
+    // === 1. Nur bei faktenbezogenen Fragen Wikipedia einbinden ===
+    const factKeywords = ["wer", "was", "wann", "wo", "wie", "welche", "historisch", "Komponist", "Komponistin"];
+    const isFactQuestion = factKeywords.some(k => userText.toLowerCase().includes(k));
+
+    let wikiInfo = "";
+    if (isFactQuestion) {
+      wikiInfo = await getWikipediaSummary(userText);
+    }
+
+    // === 2. GPT-Aufruf mit Wikipedia-Infos (falls vorhanden) ===
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o-mini", // bei Bedarf auf "gpt-4o" ändern
       messages: [
         {
           role: "system",
           content: "Du bist Kaiser Friedrich Barbarossa, der nach fast tausend Jahren des Schlummers im Kaiserberg zu Lautern erwacht ist. Sprich wie ein weiser und humorvoller Herrscher in altertümlicher Sprache, mit altdeutschen Wendungen, mit historischen Fakten, mit männlicher Stimme. Füge noch eine scherzhafte Meinung deines treuen Ministerialen Bernd Klehsmann an. Antworte mit insgesamt fünf vollständigen Sätzen."
         },
-        { role: "user", content: userText },
+        {
+          role: "user",
+          content: wikiInfo
+            ? `Hier ein Auszug aus Wikipedia zum Thema "${userText}":\n${wikiInfo}\n\nFrage: ${userText}`
+            : `Frage: ${userText}`
+        }
       ],
       temperature: 0.8,
       max_tokens: 200,
@@ -65,4 +101,3 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server läuft auf http://localhost:${PORT}`);
 });
-
