@@ -65,7 +65,7 @@ app.post("/ask", async (req, res) => {
 
     // === 2. GPT-Aufruf mit Wikipedia-Infos (falls vorhanden) ===
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // bei Bedarf auf "gpt-4o" ändern
+      model: "gpt-4o", // bei Bedarf auf "gpt-4o-mini" ändern
       messages: [
         {
           role: "system",
@@ -79,7 +79,7 @@ app.post("/ask", async (req, res) => {
         }
       ],
       temperature: 0.8,
-      max_tokens: 200,
+      max_tokens: 250,
     });
 
     const answer = completion.choices[0].message.content;
@@ -101,3 +101,4 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server läuft auf http://localhost:${PORT}`);
 });
+
