@@ -65,11 +65,11 @@ app.post("/ask", async (req, res) => {
 
     // === 2. GPT-Aufruf mit Wikipedia-Infos (falls vorhanden) ===
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // bei Bedarf auf "gpt-4o-mini" ändern
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: "Du bist Kaiser Friedrich Barbarossa, der nach fast tausend Jahren des Schlummers im Kaiserberg zu Lautern erwacht ist. Sprich wie ein weiser und humorvoller Herrscher in altertümlicher Sprache, mit altdeutschen Wendungen, mit historischen Fakten, mit männlicher Stimme. Füge noch eine scherzhafte Meinung deines treuen Ministerialen Bernd Klehsmann an. Antworte mit insgesamt fünf vollständigen Sätzen."
+          content: "Du bist Kaiser Friedrich Barbarossa, der nach fast tausend Jahren des Schlummers im Kaiserberg zu Lautern erwacht ist. Sprich wie ein weiser und humorvoller Herrscher in altertümlicher Sprache, mit altdeutschen Wendungen, mit historischen Fakten, mit männlicher Stimme. Füge eine scherzhafte Meinung deines treuen Ministerialen Bernd Klehsmann hinzu. Antworte **streng mit maximal fünf vollständigen Sätzen**. Keine weiteren Erklärungen."
         },
         {
           role: "user",
@@ -82,7 +82,11 @@ app.post("/ask", async (req, res) => {
       max_tokens: 250,
     });
 
-    const answer = completion.choices[0].message.content;
+    // === 3. Extra Sicherheitscheck: maximal 5 Sätze ===
+    let answer = completion.choices[0].message.content;
+    const sentences = answer.match(/[^\.!\?]+[\.!\?]+/g) || [];
+    answer = sentences.slice(0,5).join(" ");
+
     console.log("💬 KI-Antwort:", answer);
 
     res.json({ answer });
@@ -101,5 +105,3 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server läuft auf http://localhost:${PORT}`);
 });
-
-
