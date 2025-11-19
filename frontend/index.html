@@ -99,13 +99,13 @@ let model, talking=false, greeted=false;
 let lastTranscript = "";
 let hmNeigen = false;
 let hmStartTime = 0;
-const hmDuration = 2000; // Dauer Hm-Phase
+const hmDuration = 4000; // Hm-Neigung langsamer
 let hmStartRotX = 0;
 let hmStartRotY = 0;
 
 let rising = false;
 let riseStartTime = 0;
-const riseDuration = 1200;
+const riseDuration = 2500; // Aufrichtung langsamer
 let hmStarted = false;
 
 let baseRotY = -0.35;
@@ -155,9 +155,15 @@ loader.load("./avatar.glb", gltf=>{
 function animate(){
   requestAnimationFrame(animate);
   if(model){
+    const time = performance.now();
+
+    // sanftes Atmen
+    const breathe = Math.sin(time*0.002)*0.003;
+    model.position.y = baseY + breathe;
+
     // Aufrichten nach Begrüßung
     if(rising){
-      const t = (performance.now() - riseStartTime) / riseDuration;
+      const t = (time - riseStartTime) / riseDuration;
       const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
       targetRotY = baseRotY * (1 - easeT);
       targetRotX = baseRotX * (1 - easeT);
@@ -166,7 +172,7 @@ function animate(){
 
     // Hm-Phase: langsam nach rechts neigen
     if(hmNeigen){
-      const t = (performance.now() - hmStartTime) / hmDuration;
+      const t = (time - hmStartTime) / hmDuration;
       if(t >= 1){
         hmNeigen = false;
         model.rotation.x = hmStartRotX + 0.3;
@@ -177,17 +183,17 @@ function animate(){
       }
     }
 
-    // Normal Talking Animation
+    // Talking Animation mit subtiler Kopfbewegung
     if(talking && !hmNeigen){
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(Date.now()*0.0015)*0.03 - Math.PI/2, 0.08);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(Date.now()*0.0019)*0.015, 0.08);
-      model.rotation.z = Math.sin(Date.now()*0.0012)*0.015;
-      model.position.y = baseY + Math.sin(Date.now()*0.01)*0.002;
+      const swayX = Math.sin(time*0.0017)*0.03; // ±2° auf/ab
+      const swayY = Math.sin(time*0.0013)*0.03; // ±2° links/rechts
+      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.08);
+      model.rotation.z = Math.sin(time*0.0012)*0.015;
     } else if(!hmNeigen){
       model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
       model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
-      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.02);
     }
   }
   renderer.render(scene,camera);
