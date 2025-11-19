@@ -102,7 +102,6 @@ footer a:hover { text-decoration: underline; }
 
 <script>
 let model, talking=false, greeted=false;
-let thinking = false;   /* ← NEU */
 
 // Kopf-Neigung nach Laden
 let baseRotY = -0.35;
@@ -115,6 +114,14 @@ let baseY = 0;
 let rising = false;
 let riseStartTime = 0;
 const riseDuration = 1200;
+
+// Vorbereitete Hm-Animation
+let hmNeigen = false;
+let hmStartTime = 0;
+const hmDuration = 2000; // Kopf bleibt leicht unten während "Hmmmm..."
+
+// Stärke des Neigens beim "Hm"
+const hmTilt = 0.65; // deutlich tiefer
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -166,17 +173,21 @@ function animate(){
       if(t >= 1) rising = false;
     }
 
+    if(hmNeigen){
+      const t = (performance.now() - hmStartTime) / hmDuration;
+      if(t >= 1){
+        hmNeigen = false;
+      } else {
+        model.rotation.x = THREE.MathUtils.lerp(baseRotX, baseRotX + hmTilt, 0.05);
+      }
+    }
+
     if(talking){
       model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(Date.now()*0.0015)*0.03 - Math.PI/2, 0.08);
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(Date.now()*0.0019)*0.015, 0.08);
       model.rotation.z = Math.sin(Date.now()*0.0012)*0.015;
       model.position.y = baseY + Math.sin(Date.now()*0.01)*0.002;
-
-    } else if (thinking) {   /* ← NEU */
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + 0.10, 0.05);
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.05);
-
-    } else {
+    } else if(!hmNeigen){
       model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
       model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
@@ -202,27 +213,9 @@ if("webkitSpeechRecognition" in window){
   recognition.continuous=false;
   recognition.interimResults=false;
 
-  /* Thinking-Hmm Funktion */
-  function playThinkingHmm() {
-    const utt = new SpeechSynthesisUtterance("Hm… einen Moment…");
-    utt.lang = "de-DE";
-    utt.rate = 0.95;
-    utt.pitch = 0.7;
-    utt.voice = maleVoice;
-    utt.volume = 0.6;
-
-    thinking = true;
-
-    speechSynthesis.speak(utt);
-  }
-
   recognition.onresult=async (event)=>{
     const text = event.results[0][0].transcript;
-
-    /* ← NEU: sofort Thinking + Hm... starten */
-    thinking = true;
-    playThinkingHmm();
-
+    console.log("🎙️ Gesprochen:", text);
     try{
       const resp = await fetch("/ask", {
         method:"POST",
@@ -230,6 +223,9 @@ if("webkitSpeechRecognition" in window){
         body:JSON.stringify({text})
       });
       const data = await resp.json();
+      // Antwort startet -> Kopf aufrichten
+      rising = true;
+      riseStartTime = performance.now();
       speak(data.answer);
     }catch(e){ console.error("Fehler bei /ask:",e); }
   };
@@ -250,21 +246,15 @@ function loadVoices(){
 speechSynthesis.onvoiceschanged = loadVoices;
 loadVoices();
 
-function speak(text){
+function speak(text, slow=false){
   if(!text || !maleVoice) return;
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang="de-DE";
-  utter.rate=0.95;
+  utter.rate = slow ? 0.6 : 0.95; // langsamer für Hm
   utter.pitch=0.6;
   utter.voice = maleVoice;
   utter.volume = 0.6;
-
-  /* ← NEU: Antwort beginnt → Thinking stoppen */
-  utter.onstart=()=>{
-    thinking = false;
-    talking = true;
-  };
-
+  utter.onstart=()=>{ talking=true; };
   utter.onend=()=>{ talking=false; };
   speechSynthesis.speak(utter);
 }
@@ -285,6 +275,11 @@ micBtn.onclick = () => {
     recognition.stop();
     micBtn.style.background = "#222";
   } else {
+    // Kopf stark neigen + "Hmmmm… einen Moment" sagen
+    hmNeigen = true;
+    hmStartTime = performance.now();
+    speak("Hmmmm… einen Moment", true);
+    
     recognition.start();
     micBtn.style.background = "#555";
   }
