@@ -96,23 +96,11 @@ footer a:hover { text-decoration: underline; }
 
 <script>
 let model, talking=false, greeted=false;
-let lastTranscript = "";
-let hmNeigen = false;
-let hmStartTime = 0;
-const hmDuration = 4000;
-let hmStartRotX = 0;
-let hmStartRotY = 0;
+let lastTranscript="";
+let hmNeigen=false, hmStartTime=0, hmStartRotX=0, hmStartRotY=0, hmSpoken=false;
+let rising=false, riseStartTime=0, riseDuration=2500;
 
-let rising = false;
-let riseStartTime = 0;
-const riseDuration = 2500;
-let hmSpoken = false;
-
-let baseRotY = -0.35;
-let baseRotX = 0.25;
-let targetRotY = baseRotY;
-let targetRotX = baseRotX;
-let baseY = 0;
+let baseRotY=-0.35, baseRotX=0.25, targetRotY=baseRotY, targetRotX=baseRotX, baseY=0;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -135,15 +123,15 @@ const loadingText = document.getElementById("loading");
 
 loader.load("./avatar.glb", gltf=>{
   model=gltf.scene;
-  const box = new THREE.Box3().setFromObject(model);
-  const size = box.getSize(new THREE.Vector3());
-  const maxDim = Math.max(size.x,size.y,size.z);
-  let scaleFactor = (1.5 / maxDim) * 0.8;
-  model.scale.set(scaleFactor, scaleFactor, scaleFactor);
-  const center = box.getCenter(new THREE.Vector3());
+  const box=new THREE.Box3().setFromObject(model);
+  const size=box.getSize(new THREE.Vector3());
+  const maxDim=Math.max(size.x,size.y,size.z);
+  const scaleFactor=(1.5/maxDim)*0.8;
+  model.scale.set(scaleFactor,scaleFactor,scaleFactor);
+  const center=box.getCenter(new THREE.Vector3());
   model.position.sub(center);
-  model.rotation.y = baseRotY - Math.PI/2;
-  model.rotation.x = baseRotX;
+  model.rotation.y=baseRotY-Math.PI/2;
+  model.rotation.x=baseRotX;
   scene.add(model);
   loadingText.style.display="none";
   animate();
@@ -157,36 +145,37 @@ function animate(){
   if(model){
     const time = performance.now();
 
-    // sanftes Atmen
+    // Atmung
     const breathe = Math.sin(time*0.002)*0.003;
     model.position.y = baseY + breathe;
 
-    // Aufrichtung nach Begrüßung/Antwort
+    // Aufrichtung nach Begrüßung oder Antwort
     if(rising){
-      const t = (time - riseStartTime)/riseDuration;
-      const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
-      targetRotY = baseRotY * (1 - easeT);
-      targetRotX = baseRotX * (1 - easeT);
-      if(t >= 1) rising=false;
+      const t = (time-riseStartTime)/riseDuration;
+      const easeT = t<0?0:(t>1?1:(-Math.cos(Math.PI*t)/2+0.5));
+      targetRotY=baseRotY*(1-easeT);
+      targetRotX=baseRotX*(1-easeT);
+      if(t>=1) rising=false;
     }
 
     // Hm-Neigung
     if(hmNeigen){
-      const t = (time - hmStartTime)/hmDuration;
-      if(t >= 1){
+      const t=(time-hmStartTime)/4000;
+      if(t>=1){
         hmNeigen=false;
-        model.rotation.x = hmStartRotX + 0.25;
-        model.rotation.y = hmStartRotY + 0.523; // 30° nach rechts
+        // sanft aufrichten starten
+        riseStartTime = performance.now();
+        rising = true;
       } else {
-        model.rotation.x = hmStartRotX + 0.25*t;
-        model.rotation.y = hmStartRotY + 0.523*t;
+        model.rotation.x = hmStartRotX + 0.25*t; // leicht nach vorne
+        model.rotation.y = hmStartRotY + 0.523*t; // 30° nach rechts
       }
     }
 
-    // Talking mit subtiler Kopfbewegung
+    // Talking-Animation nur, wenn hmNeigen abgeschlossen
     if(talking && !hmNeigen){
-      const swayX = Math.sin(time*0.0017)*0.03;
-      const swayY = Math.sin(time*0.0013)*0.03;
+      const swayX=Math.sin(time*0.0017)*0.03;
+      const swayY=Math.sin(time*0.0013)*0.03;
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
       model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.08);
       model.rotation.z = Math.sin(time*0.0012)*0.015;
@@ -266,7 +255,7 @@ function speak(text, slow=false){
   if(!text || !maleVoice) return;
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang="de-DE";
-  utter.rate = slow?0.4:0.95;
+  utter.rate = slow?0.35:0.95; // Hm sehr langsam
   utter.pitch=0.6;
   utter.voice=maleVoice;
   utter.volume=0.6;
