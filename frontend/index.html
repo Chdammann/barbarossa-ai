@@ -166,9 +166,9 @@ function animate(){
       if(t >= 1){
         hmNeigen = false;
       } else {
-        // Kopf geneigt + sanftes Wackeln, max ±30°
-        model.rotation.x = THREE.MathUtils.lerp(baseRotX, baseRotX + hmTilt, 0.05) + Math.sin(Date.now()*0.004)*0.03;
-        model.rotation.y = baseRotY + Math.sin(Date.now()*0.003)*0.015; // max ca 30°
+        // Kopf geneigt + sanftes Wackeln, max ±30° seitlich, kein abruptes 90° spring
+        model.rotation.x = baseRotX + hmTilt + Math.sin(Date.now()*0.004)*0.02;
+        model.rotation.y = baseRotY + Math.sin(Date.now()*0.003)*0.25; // ±30° maximal
       }
     }
 
