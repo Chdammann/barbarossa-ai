@@ -98,7 +98,8 @@ footer a:hover { text-decoration: underline; }
 let model, talking=false, greeted=false;
 let lastTranscript="";
 let hmNeigen=false, hmStartTime=0, hmStartRotX=0, hmStartRotY=0, hmSpoken=false;
-let rising=false, riseStartTime=0, riseDuration=2500;
+let rising=false, riseStartTime=0, riseDuration=3000;
+let resetToStart=false, resetStartTime=0;
 
 let baseRotY=-0.35, baseRotX=0.25, targetRotY=baseRotY, targetRotX=baseRotX, baseY=0;
 
@@ -142,49 +143,52 @@ loader.load("./avatar.glb", gltf=>{
 
 function animate(){
   requestAnimationFrame(animate);
-  if(model){
-    const time = performance.now();
+  if(!model) return;
 
-    // Atmung
-    const breathe = Math.sin(time*0.002)*0.003;
-    model.position.y = baseY + breathe;
+  const time = performance.now();
 
-    // Aufrichtung nach Begrüßung oder Antwort
-    if(rising){
-      const t = (time-riseStartTime)/riseDuration;
-      const easeT = t<0?0:(t>1?1:(-Math.cos(Math.PI*t)/2+0.5));
-      targetRotY=baseRotY*(1-easeT);
-      targetRotX=baseRotX*(1-easeT);
-      if(t>=1) rising=false;
-    }
+  // Atmung
+  model.position.y = baseY + Math.sin(time*0.002)*0.003;
 
-    // Hm-Neigung
-    if(hmNeigen){
-      const t=(time-hmStartTime)/4000;
-      if(t>=1){
-        hmNeigen=false;
-        // sanft aufrichten starten
-        riseStartTime = performance.now();
-        rising = true;
-      } else {
-        model.rotation.x = hmStartRotX + 0.25*t; // leicht nach vorne
-        model.rotation.y = hmStartRotY + 0.523*t; // 30° nach rechts
-      }
-    }
+  // Aufrichtung während Hm oder nach Antwort
+  if(rising){
+    const t = (time-riseStartTime)/riseDuration;
+    const easeT = t<0?0:(t>1?1:(-Math.cos(Math.PI*t)/2+0.5));
+    targetRotY=baseRotY*(1-easeT);
+    targetRotX=baseRotX*(1-easeT);
+    if(t>=1) rising=false;
+  }
 
-    // Talking-Animation nur, wenn hmNeigen abgeschlossen
-    if(talking && !hmNeigen){
-      const swayX=Math.sin(time*0.0017)*0.03;
-      const swayY=Math.sin(time*0.0013)*0.03;
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.08);
-      model.rotation.z = Math.sin(time*0.0012)*0.015;
-    } else if(!hmNeigen){
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
-      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z||0,0,0.02);
+  if(hmNeigen){
+    const t = (time-hmStartTime)/4000;
+    if(t>=1){
+      hmNeigen=false;
+      rising=true;
+      riseStartTime=performance.now();
+    } else {
+      model.rotation.x = hmStartRotX + 0.25*t; // Neigung nach vorne
+      model.rotation.y = hmStartRotY + 0.523*t; // ca. 30° zur Seite
     }
   }
+
+  if(talking && !hmNeigen && !rising){
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(time*0.0017)*0.03, 0.08);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(time*0.0013)*0.03 - Math.PI/2, 0.08);
+    model.rotation.z = Math.sin(time*0.0012)*0.015;
+  } else if(!hmNeigen && !rising){
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
+    model.rotation.z = THREE.MathUtils.lerp(model.rotation.z||0,0,0.02);
+  }
+
+  // Rückkehr nach Antwort zur Ausgangsstellung
+  if(resetToStart){
+    const t = (time-resetStartTime)/3000;
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.02);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY-Math.PI/2, 0.02);
+    if(t>=1) resetToStart=false;
+  }
+
   renderer.render(scene,camera);
 }
 
@@ -214,27 +218,36 @@ if("webkitSpeechRecognition" in window){
     recognizing=false;
 
     if(lastTranscript && !hmSpoken){
-      hmSpoken=true;
-      hmNeigen=true;
-      hmStartTime = performance.now();
-      hmStartRotX = model.rotation.x;
-      hmStartRotY = model.rotation.y;
-      speak("Hmmmmmm… einen Moment", true);
+        hmSpoken=true;
+        const userText = lastTranscript;
+        lastTranscript = "";
+        hmNeigen = true;
+        hmStartTime = performance.now();
+        hmStartRotX = model.rotation.x;
+        hmStartRotY = model.rotation.y;
+        speak("Hmmmmmm… einen Moment", true);
 
-      fetch("/ask", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({text:lastTranscript})
-      })
-      .then(resp=>resp.json())
-      .then(data=>{
-        rising=true;
-        riseStartTime = performance.now();
-        speak(data.answer);
-        lastTranscript="";
-        hmSpoken=false;
-      })
-      .catch(e=>console.error("Fehler bei /ask:",e));
+        fetch("/ask", {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({text:userText})
+        }).then(resp=>resp.json())
+          .then(data=>{
+            const waitRiseEnd = setInterval(()=>{
+                if(!rising && !hmNeigen){
+                    speak(data.answer);
+                    const resetAfterAnswer = setInterval(()=>{
+                        if(!talking){
+                            resetToStart = true;
+                            resetStartTime = performance.now();
+                            clearInterval(resetAfterAnswer);
+                        }
+                    },50);
+                    hmSpoken=false;
+                    clearInterval(waitRiseEnd);
+                }
+            },50);
+        }).catch(e=>console.error("Fehler bei /ask:",e));
     }
   };
 }else{
@@ -255,7 +268,7 @@ function speak(text, slow=false){
   if(!text || !maleVoice) return;
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang="de-DE";
-  utter.rate = slow?0.35:0.95; // Hm sehr langsam
+  utter.rate = slow?0.35:0.95;
   utter.pitch=0.6;
   utter.voice=maleVoice;
   utter.volume=0.6;
