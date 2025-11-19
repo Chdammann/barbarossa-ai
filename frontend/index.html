@@ -98,8 +98,8 @@ footer a:hover { text-decoration: underline; }
 let model, talking=false, greeted=false;
 let lastTranscript="";
 let hmNeigen=false, hmStartTime=0, hmStartRotX=0, hmStartRotY=0;
-let rising=false, riseStartTime=0, riseDuration=3000;
-let resetToStart=false, resetStartTime=0;
+let rising=false, riseStartTime=0, riseDuration=1200;
+let resetToStart=false;
 
 let baseRotY=-0.35, baseRotX=0.25, targetRotY=baseRotY, targetRotX=baseRotX, baseY=0;
 
@@ -127,7 +127,7 @@ loader.load("./avatar.glb", gltf=>{
   const box=new THREE.Box3().setFromObject(model);
   const size=box.getSize(new THREE.Vector3());
   const maxDim=Math.max(size.x,size.y,size.z);
-  const scaleFactor=(1.5/maxDim)*0.8;
+  const scaleFactor=(1.5/maxDim)*0.8; // 80% verkleinert
   model.scale.set(scaleFactor,scaleFactor,scaleFactor);
   const center=box.getCenter(new THREE.Vector3());
   model.position.sub(center);
@@ -146,10 +146,10 @@ function animate(){
   if(!model) return;
   const time=performance.now();
 
-  // Atmung
+  // sanfte Atmung
   model.position.y = baseY + Math.sin(time*0.002)*0.003;
 
-  // Aufrichtung während Begrüßung
+  // Begrüßung Aufrichtung
   if(rising){
     const t=(time-riseStartTime)/riseDuration;
     const easeT=t<0?0:(t>1?1:(-Math.cos(Math.PI*t)/2+0.5));
@@ -236,7 +236,6 @@ if("webkitSpeechRecognition" in window){
                   const resetAfterAnswer = setInterval(()=>{
                       if(!talking){
                           resetToStart=true;
-                          resetStartTime=performance.now();
                           clearInterval(resetAfterAnswer);
                       }
                   },50);
