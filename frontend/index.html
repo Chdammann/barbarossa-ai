@@ -97,7 +97,7 @@ footer a:hover { text-decoration: underline; }
 <script>
 let model, talking=false, greeted=false;
 let lastTranscript="";
-let hmNeigen=false, hmStartTime=0, hmStartRotX=0, hmStartRotY=0, hmSpoken=false;
+let hmNeigen=false, hmStartTime=0, hmStartRotX=0, hmStartRotY=0;
 let rising=false, riseStartTime=0, riseDuration=3000;
 let resetToStart=false, resetStartTime=0;
 
@@ -144,33 +144,34 @@ loader.load("./avatar.glb", gltf=>{
 function animate(){
   requestAnimationFrame(animate);
   if(!model) return;
-
-  const time = performance.now();
+  const time=performance.now();
 
   // Atmung
   model.position.y = baseY + Math.sin(time*0.002)*0.003;
 
-  // Aufrichtung während Hm oder nach Antwort
+  // Aufrichtung während Begrüßung
   if(rising){
-    const t = (time-riseStartTime)/riseDuration;
-    const easeT = t<0?0:(t>1?1:(-Math.cos(Math.PI*t)/2+0.5));
+    const t=(time-riseStartTime)/riseDuration;
+    const easeT=t<0?0:(t>1?1:(-Math.cos(Math.PI*t)/2+0.5));
     targetRotY=baseRotY*(1-easeT);
     targetRotX=baseRotX*(1-easeT);
     if(t>=1) rising=false;
   }
 
+  // Hm-Neigung
   if(hmNeigen){
-    const t = (time-hmStartTime)/4000;
+    const t=(time-hmStartTime)/4000;
     if(t>=1){
       hmNeigen=false;
       rising=true;
       riseStartTime=performance.now();
     } else {
-      model.rotation.x = hmStartRotX + 0.25*t; // Neigung nach vorne
-      model.rotation.y = hmStartRotY + 0.523*t; // ca. 30° zur Seite
+      model.rotation.x = hmStartRotX + 0.25*t;
+      model.rotation.y = hmStartRotY + 0.523*t;
     }
   }
 
+  // Talking
   if(talking && !hmNeigen && !rising){
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(time*0.0017)*0.03, 0.08);
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(time*0.0013)*0.03 - Math.PI/2, 0.08);
@@ -181,12 +182,10 @@ function animate(){
     model.rotation.z = THREE.MathUtils.lerp(model.rotation.z||0,0,0.02);
   }
 
-  // Rückkehr nach Antwort zur Ausgangsstellung
+  // Rückkehr nach Antwort
   if(resetToStart){
-    const t = (time-resetStartTime)/3000;
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.02);
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY-Math.PI/2, 0.02);
-    if(t>=1) resetToStart=false;
   }
 
   renderer.render(scene,camera);
@@ -216,38 +215,35 @@ if("webkitSpeechRecognition" in window){
   recognition.onend = () => {
     micBtn.style.background="#222";
     recognizing=false;
+    if(lastTranscript){
+      const userText=lastTranscript;
+      lastTranscript="";
+      hmNeigen=true;
+      hmStartTime=performance.now();
+      hmStartRotX=model.rotation.x;
+      hmStartRotY=model.rotation.y;
+      speak("Hmmmmmm… einen Moment", true);
 
-    if(lastTranscript && !hmSpoken){
-        hmSpoken=true;
-        const userText = lastTranscript;
-        lastTranscript = "";
-        hmNeigen = true;
-        hmStartTime = performance.now();
-        hmStartRotX = model.rotation.x;
-        hmStartRotY = model.rotation.y;
-        speak("Hmmmmmm… einen Moment", true);
-
-        fetch("/ask", {
-            method:"POST",
-            headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({text:userText})
-        }).then(resp=>resp.json())
-          .then(data=>{
-            const waitRiseEnd = setInterval(()=>{
-                if(!rising && !hmNeigen){
-                    speak(data.answer);
-                    const resetAfterAnswer = setInterval(()=>{
-                        if(!talking){
-                            resetToStart = true;
-                            resetStartTime = performance.now();
-                            clearInterval(resetAfterAnswer);
-                        }
-                    },50);
-                    hmSpoken=false;
-                    clearInterval(waitRiseEnd);
-                }
-            },50);
-        }).catch(e=>console.error("Fehler bei /ask:",e));
+      fetch("/ask", {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({text:userText})
+      }).then(resp=>resp.json())
+        .then(data=>{
+          const waitRiseEnd = setInterval(()=>{
+              if(!rising && !hmNeigen){
+                  speak(data.answer);
+                  const resetAfterAnswer = setInterval(()=>{
+                      if(!talking){
+                          resetToStart=true;
+                          resetStartTime=performance.now();
+                          clearInterval(resetAfterAnswer);
+                      }
+                  },50);
+                  clearInterval(waitRiseEnd);
+              }
+          },50);
+      }).catch(e=>console.error("Fehler bei /ask:",e));
     }
   };
 }else{
@@ -279,7 +275,6 @@ function speak(text, slow=false){
 
 micBtn.onclick = ()=>{
   if(!recognition) return;
-
   if(!greeted){
     greeted=true;
     rising=true;
@@ -287,7 +282,6 @@ micBtn.onclick = ()=>{
     speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
     return;
   }
-
   if(!recognizing){
     recognition.start();
     micBtn.style.background="#555";
