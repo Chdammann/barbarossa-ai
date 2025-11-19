@@ -141,7 +141,7 @@ loader.load("./avatar.glb", gltf=>{
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x,size.y,size.z);
-  const scaleFactor = 1.5 / maxDim;
+  const scaleFactor = ( 1.5 / maxDim)*0.8;
   model.scale.set(scaleFactor, scaleFactor, scaleFactor);
   const center = box.getCenter(new THREE.Vector3());
   model.position.sub(center);
