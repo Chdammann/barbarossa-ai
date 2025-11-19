@@ -1,16 +1,12 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<!-- Standard Favicon -->
 <link rel="icon" href="avatar.png" type="image/png">
-
-<!-- Für Android / Chrome Startbildschirm -->
 <link rel="apple-touch-icon" href="avatar.png">
 <meta name="theme-color" content="#000000">
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Frag Friedrich Barbarossa</title>
-
 <style>
 body {
   margin: 0;
@@ -91,41 +87,34 @@ footer a:hover { text-decoration: underline; }
 <canvas id="avatarCanvas"></canvas>
 <button id="micBtn">🎤</button>
 <div id="micNotice"></div>
-
 <footer>
 © 2025 <a href="https://christoph-dammann.de" target="_blank">Dr. Christoph Dammann</a>
 </footer>
 
-<!-- Three.js -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
 let model, talking=false, greeted=false;
 let lastTranscript = "";
+let hmNeigen = false;
+let hmStartTime = 0;
+const hmDuration = 2000;
+const hmTilt = 0.65; 
+let rising = false;
+let riseStartTime = 0;
+const riseDuration = 1200;
+let hmStarted = false;
 
-// Kopf-Neigung nach Laden
 let baseRotY = -0.35;
 let baseRotX = 0.25;
 let targetRotY = baseRotY;
 let targetRotX = baseRotX;
 let baseY = 0;
 
-// Kopf aufrichten beim ersten Tipp
-let rising = false;
-let riseStartTime = 0;
-const riseDuration = 1200;
-
-// Hm-Animation nach Frage
-let hmNeigen = false;
-let hmStartTime = 0;
-const hmDuration = 2000; // Kopf bleibt geneigt
-const hmTilt = 0.65; // deutlich stärker geneigt
-
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0,0,2.8);
-
 const renderer = new THREE.WebGLRenderer({canvas: document.getElementById("avatarCanvas"), antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -177,7 +166,9 @@ function animate(){
       if(t >= 1){
         hmNeigen = false;
       } else {
-        model.rotation.x = THREE.MathUtils.lerp(baseRotX, baseRotX + hmTilt, 0.05);
+        // Neigung + sanftes Wackeln
+        model.rotation.x = THREE.MathUtils.lerp(baseRotX, baseRotX + hmTilt, 0.05) + Math.sin(Date.now()*0.004)*0.03;
+        model.rotation.y = baseRotY + Math.sin(Date.now()*0.003)*0.02;
       }
     }
 
@@ -218,36 +209,34 @@ if("webkitSpeechRecognition" in window){
   };
 
   recognition.onend = () => {
-    recognizing = false;
     micBtn.style.background = "#222";
+    recognizing = false;
 
-    if(!lastTranscript) return;
+    if(lastTranscript && !hmStarted){
+      hmStarted = true;
+      hmNeigen = true;
+      hmStartTime = performance.now();
+      speak("Hmmmmmm… einen Moment", true); // sehr langsam und langgezogen
 
-    // Hm-Animation starten
-    hmNeigen = true;
-    hmStartTime = performance.now();
-    speak("Hmmmm… einen Moment", true);
-
-    // Anfrage an GPT
-    fetch("/ask", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({text: lastTranscript})
-    })
-    .then(resp => resp.json())
-    .then(data => {
-      rising = true;
-      riseStartTime = performance.now();
-      speak(data.answer);
-      lastTranscript = ""; // Reset
-    })
-    .catch(e => console.error("Fehler bei /ask:", e));
+      fetch("/ask", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({text:lastTranscript})
+      })
+      .then(resp => resp.json())
+      .then(data => {
+        rising = true;
+        riseStartTime = performance.now();
+        speak(data.answer);
+        lastTranscript = "";
+      })
+      .catch(e => console.error("Fehler bei /ask:", e));
+    }
   };
 }else{
   micNotice.textContent="🎤 Sprachsteuerung wird im Browser nicht unterstützt. Bitte Chrome/Edge nutzen.";
 }
 
-// Stimme & Sprechen
 let maleVoice = null;
 function loadVoices(){
   const voices = speechSynthesis.getVoices();
@@ -262,8 +251,8 @@ function speak(text, slow=false){
   if(!text || !maleVoice) return;
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang="de-DE";
-  utter.rate = slow ? 0.6 : 0.95; // langsamer für Hm
-  utter.pitch=0.6;
+  utter.rate = slow ? 0.4 : 0.95; // Hm sehr langsam
+  utter.pitch = 0.6;
   utter.voice = maleVoice;
   utter.volume = 0.6;
   utter.onstart=()=>{ talking=true; };
@@ -271,7 +260,6 @@ function speak(text, slow=false){
   speechSynthesis.speak(utter);
 }
 
-// Begrüßung & Mikrofon
 micBtn.onclick = () => {
   if(!recognition) return;
 
@@ -283,14 +271,16 @@ micBtn.onclick = () => {
     return;
   }
 
-  if(recognizing){
-    recognition.stop();
-    micBtn.style.background = "#222";
-  } else {
+  if(!recognizing){
     recognition.start();
     micBtn.style.background = "#555";
+    recognizing = true;
+    hmStarted = false;
+  } else {
+    recognition.stop();
+    micBtn.style.background = "#222";
+    recognizing = false;
   }
-  recognizing = !recognizing;
 };
 </script>
 </body>
