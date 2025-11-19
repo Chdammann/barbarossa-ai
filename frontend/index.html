@@ -102,6 +102,7 @@ footer a:hover { text-decoration: underline; }
 
 <script>
 let model, talking=false, greeted=false;
+let lastTranscript = "";
 
 // Kopf-Neigung nach Laden
 let baseRotY = -0.35;
@@ -115,13 +116,11 @@ let rising = false;
 let riseStartTime = 0;
 const riseDuration = 1200;
 
-// Vorbereitete Hm-Animation
+// Hm-Animation nach Frage
 let hmNeigen = false;
 let hmStartTime = 0;
-const hmDuration = 2000; // Kopf bleibt leicht unten während "Hmmmm..."
-
-// Stärke des Neigens beim "Hm"
-const hmTilt = 0.65; // deutlich tiefer
+const hmDuration = 2000; // Kopf bleibt geneigt
+const hmTilt = 0.65; // deutlich stärker geneigt
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -213,24 +212,37 @@ if("webkitSpeechRecognition" in window){
   recognition.continuous=false;
   recognition.interimResults=false;
 
-  recognition.onresult=async (event)=>{
-    const text = event.results[0][0].transcript;
-    console.log("🎙️ Gesprochen:", text);
-    try{
-      const resp = await fetch("/ask", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({text})
-      });
-      const data = await resp.json();
-      // Antwort startet -> Kopf aufrichten
+  recognition.onresult = (event) => {
+    lastTranscript = event.results[0][0].transcript;
+    console.log("🎙️ Gesprochen:", lastTranscript);
+  };
+
+  recognition.onend = () => {
+    recognizing = false;
+    micBtn.style.background = "#222";
+
+    if(!lastTranscript) return;
+
+    // Hm-Animation starten
+    hmNeigen = true;
+    hmStartTime = performance.now();
+    speak("Hmmmm… einen Moment", true);
+
+    // Anfrage an GPT
+    fetch("/ask", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({text: lastTranscript})
+    })
+    .then(resp => resp.json())
+    .then(data => {
       rising = true;
       riseStartTime = performance.now();
       speak(data.answer);
-    }catch(e){ console.error("Fehler bei /ask:",e); }
+      lastTranscript = ""; // Reset
+    })
+    .catch(e => console.error("Fehler bei /ask:", e));
   };
-
-  recognition.onend=()=>{ recognizing=false; micBtn.style.background="#222"; }
 }else{
   micNotice.textContent="🎤 Sprachsteuerung wird im Browser nicht unterstützt. Bitte Chrome/Edge nutzen.";
 }
@@ -275,11 +287,6 @@ micBtn.onclick = () => {
     recognition.stop();
     micBtn.style.background = "#222";
   } else {
-    // Kopf stark neigen + "Hmmmm… einen Moment" sagen
-    hmNeigen = true;
-    hmStartTime = performance.now();
-    speak("Hmmmm… einen Moment", true);
-    
     recognition.start();
     micBtn.style.background = "#555";
   }
