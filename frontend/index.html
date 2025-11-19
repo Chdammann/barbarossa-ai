@@ -99,7 +99,7 @@ let model, talking=false, greeted=false;
 let lastTranscript = "";
 let hmNeigen = false;
 let hmStartTime = 0;
-const hmDuration = 2000;
+const hmDuration = 2000; // Dauer Hm-Phase
 let rising = false;
 let riseStartTime = 0;
 const riseDuration = 1200;
@@ -152,6 +152,7 @@ loader.load("./avatar.glb", gltf=>{
 function animate(){
   requestAnimationFrame(animate);
   if(model){
+    // Aufrichten nach Begrüßung
     if(rising){
       const t = (performance.now() - riseStartTime) / riseDuration;
       const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
@@ -160,18 +161,18 @@ function animate(){
       if(t >= 1) rising = false;
     }
 
+    // Hm-Phase: sanft nach rechts neigen
     if(hmNeigen){
       const t = (performance.now() - hmStartTime) / hmDuration;
       if(t >= 1){
         hmNeigen = false;
       } else {
-        // sanfte Neigung nach unten
-        model.rotation.x = baseRotX + 0.3 + Math.sin(Date.now()*0.004)*0.01;
-        // Frontal Y + max ±30° seitlich
-        model.rotation.y = (baseRotY - Math.PI/2) + Math.sin(Date.now()*0.003)*0.523; // ±30° = 0.523 rad
+        model.rotation.x = baseRotX + 0.3; // leicht nach unten
+        model.rotation.y = (baseRotY - Math.PI/2) + 0.523 * t; // sanft nach rechts 30°
       }
     }
 
+    // Normal Talking Animation
     if(talking && !hmNeigen){
       model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(Date.now()*0.0015)*0.03 - Math.PI/2, 0.08);
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(Date.now()*0.0019)*0.015, 0.08);
