@@ -100,7 +100,6 @@ let lastTranscript = "";
 let hmNeigen = false;
 let hmStartTime = 0;
 const hmDuration = 2000;
-const hmTilt = 0.65; 
 let rising = false;
 let riseStartTime = 0;
 const riseDuration = 1200;
@@ -166,13 +165,14 @@ function animate(){
       if(t >= 1){
         hmNeigen = false;
       } else {
-        // Kopf geneigt + sanftes Wackeln, max ±30° seitlich, kein abruptes 90° spring
-        model.rotation.x = baseRotX + hmTilt + Math.sin(Date.now()*0.004)*0.02;
-        model.rotation.y = baseRotY + Math.sin(Date.now()*0.003)*0.25; // ±30° maximal
+        // sanfte Neigung nach unten
+        model.rotation.x = baseRotX + 0.3 + Math.sin(Date.now()*0.004)*0.01;
+        // Frontal Y + max ±30° seitlich
+        model.rotation.y = (baseRotY - Math.PI/2) + Math.sin(Date.now()*0.003)*0.523; // ±30° = 0.523 rad
       }
     }
 
-    if(talking){
+    if(talking && !hmNeigen){
       model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(Date.now()*0.0015)*0.03 - Math.PI/2, 0.08);
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(Date.now()*0.0019)*0.015, 0.08);
       model.rotation.z = Math.sin(Date.now()*0.0012)*0.015;
