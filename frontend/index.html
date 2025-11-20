@@ -99,7 +99,7 @@ let model, talking=false, greeted=false;
 let lastTranscript = "";
 let hmNeigen = false;
 let hmStartTime = 0;
-const hmDuration = 2000;
+const hmDuration = 4000; // langsamer als vorher
 let hmStartRotX = 0;
 let hmStartRotY = 0;
 
@@ -169,20 +169,21 @@ function animate(){
       const t = (performance.now() - hmStartTime) / hmDuration;
       if(t >= 1){
         hmNeigen = false;
-        model.rotation.x = hmStartRotX + 0.3;
-        model.rotation.y = hmStartRotY + 0.3; 
+        model.rotation.x = hmStartRotX + 0.25;
+        model.rotation.y = hmStartRotY + 0.25; 
       } else {
-        model.rotation.x = hmStartRotX + 0.3 * t;
-        model.rotation.y = hmStartRotY + 0.3 * t;
+        model.rotation.x = hmStartRotX + 0.25 * t;
+        model.rotation.y = hmStartRotY + 0.25 * t;
       }
     }
 
-    // Normal Talking Animation
+    // Talking Animation mit natürlicher Atmung
     if(talking && !hmNeigen){
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(Date.now()*0.0015)*0.03 - Math.PI/2, 0.08);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(Date.now()*0.0019)*0.015, 0.08);
-      model.rotation.z = Math.sin(Date.now()*0.0012)*0.015;
-      model.position.y = baseY + Math.sin(Date.now()*0.01)*0.002;
+      const time = Date.now();
+      model.position.y = baseY + Math.sin(time*0.0015)*0.008; // sanft vertikal
+      model.rotation.z = Math.sin(time*0.0015)*0.004; // leicht seitlich
+      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(time*0.0017)*0.012, 0.08);
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(time*0.0015)*0.018 - Math.PI/2, 0.08);
     } else if(!hmNeigen){
       model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
