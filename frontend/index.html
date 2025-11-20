@@ -99,7 +99,7 @@ let model, talking=false, greeted=false;
 let lastTranscript = "";
 let hmNeigen = false;
 let hmStartTime = 0;
-const hmDuration = 4000; // langsamer als vorher
+const hmDuration = 4000;
 let hmStartRotX = 0;
 let hmStartRotY = 0;
 
@@ -177,13 +177,20 @@ function animate(){
       }
     }
 
-    // Talking Animation mit natürlicher Atmung
+    // Talking Animation mit natürlicher Atmung und lebendigen Kopfbewegungen
     if(talking && !hmNeigen){
-      const time = Date.now();
-      model.position.y = baseY + Math.sin(time*0.0015)*0.008; // sanft vertikal
-      model.rotation.z = Math.sin(time*0.0015)*0.004; // leicht seitlich
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(time*0.0017)*0.012, 0.08);
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(time*0.0015)*0.018 - Math.PI/2, 0.08);
+      const t = Date.now();
+      const breathe = Math.sin(t*0.0015)*0.008 + Math.sin(t*0.0007)*0.004;
+      model.position.y = baseY + breathe;
+
+      // Lebendige Kopfbewegungen
+      const swayY = Math.sin(t*0.0012)*0.02 + Math.sin(t*0.0023)*0.01;
+      const swayX = Math.sin(t*0.0017)*0.015 + Math.sin(t*0.0021)*0.008;
+      const swayZ = Math.sin(t*0.0015)*0.004;
+
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.08);
+      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
+      model.rotation.z = swayZ;
     } else if(!hmNeigen){
       model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
@@ -234,6 +241,9 @@ if("webkitSpeechRecognition" in window){
       })
       .then(resp => resp.json())
       .then(data => {
+        // Reduzierte Kopf-Drehung zu Beginn der Antwort (15°)
+        targetRotY = baseRotY - 0.15;
+
         rising = true;
         riseStartTime = performance.now();
         speak(data.answer);
@@ -243,6 +253,7 @@ if("webkitSpeechRecognition" in window){
           riseStartTime = performance.now();
           hmStarted = false;
           lastTranscript = "";
+          targetRotY = baseRotY; // zurück zur Basis
         }, 500); 
       })
       .catch(e => console.error("Fehler bei /ask:", e));
