@@ -108,8 +108,8 @@ let riseStartTime = 0;
 const riseDuration = 1200;
 let hmStarted = false;
 
-let baseRotY = -0.35;
-let baseRotX = 0.25;
+let baseRotY = -0.35;   // Basis-Kopfrotation (Y)
+let baseRotX = 0.25;    // Basis-Kopfrotation (X)
 let targetRotY = baseRotY;
 let targetRotX = baseRotX;
 let baseY = 0;
@@ -142,6 +142,7 @@ loader.load("./avatar.glb", gltf=>{
   model.scale.set(scaleFactor, scaleFactor, scaleFactor);
   const center = box.getCenter(new THREE.Vector3());
   model.position.sub(center);
+  // Initial-Rotation passend zur Basis
   model.rotation.y = baseRotY - Math.PI/2;
   model.rotation.x = baseRotX;
   scene.add(model);
@@ -155,47 +156,58 @@ loader.load("./avatar.glb", gltf=>{
 function animate(){
   requestAnimationFrame(animate);
   if(model){
-    // Aufrichten nach Begrüßung
+    const now = Date.now();
+
+    // --- Aufrichten nach Begrüßung (rising) ---
     if(rising){
       const t = (performance.now() - riseStartTime) / riseDuration;
-      const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
+      const clamped = t < 0 ? 0 : (t > 1 ? 1 : t);
+      const easeT = (-Math.cos(Math.PI * clamped)/2 + 0.5);
       targetRotY = baseRotY * (1 - easeT);
       targetRotX = baseRotX * (1 - easeT);
       if(t >= 1) rising = false;
     }
 
-    // Hm-Phase: langsam nach vorne-links neigen
+    // --- Hm-Phase: langsam nach vorne neigen (nur X) ---
     if(hmNeigen){
       const t = (performance.now() - hmStartTime) / hmDuration;
-      if(t >= 1){
-        hmNeigen = false;
-        model.rotation.x = hmStartRotX + 0.25;
-        model.rotation.y = hmStartRotY + 0.25; 
-      } else {
-        model.rotation.x = hmStartRotX + 0.25 * t;
-        model.rotation.y = hmStartRotY + 0.25 * t;
-      }
+      const tt = t < 0 ? 0 : (t > 1 ? 1 : t);
+      // Nur Vorne-Neigen: Y bleibt unverändert während der gesamten Hm-Phase
+      model.rotation.x = hmStartRotX + 0.25 * tt;
+      // model.rotation.y bleibt so wie beim Start der Neigephase (keine Links-Drehung)
     }
 
-    // Talking Animation mit natürlicher Atmung und lebendigen Kopfbewegungen
-    if(talking && !hmNeigen){
-      const t = Date.now();
-      const breathe = Math.sin(t*0.0015)*0.008 + Math.sin(t*0.0007)*0.004;
-      model.position.y = baseY + breathe;
+    // --- Atmung (immer aktiv, auch während hmNeigen) ---
+    // stärkere, aber natürlich wirkende Atmung (kombinierte Sinus)
+    const breathe = Math.sin(now * 0.0016) * 0.012 + Math.sin(now * 0.0009) * 0.006;
+    model.position.y = baseY + breathe;
 
-      // Lebendige Kopfbewegungen
-      const swayY = Math.sin(t*0.0012)*0.02 + Math.sin(t*0.0023)*0.01;
-      const swayX = Math.sin(t*0.0017)*0.015 + Math.sin(t*0.0021)*0.008;
-      const swayZ = Math.sin(t*0.0015)*0.004;
+    // --- Talking Animation mit lebendigen Kopfbewegungen ---
+    if(talking){
+      const swayY = Math.sin(now * 0.0012) * 0.02 + Math.sin(now * 0.0023) * 0.01;
+      const swayX = Math.sin(now * 0.0017) * 0.015 + Math.sin(now * 0.0021) * 0.008;
+      const swayZ = Math.sin(now * 0.0015) * 0.004;
 
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.08);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
-      model.rotation.z = swayZ;
-    } else if(!hmNeigen){
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
-      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
-      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.02);
+      // Wenn hmNeigen aktiv, soll der Kopf nicht zurückdrehen — also nur minimale Lerp in Y/X auf den
+      // bestehenden geneigten Zustand. Wir vermeiden dabei Links-Drehungen komplett.
+      if(!hmNeigen){
+        model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2 + swayY, 0.08);
+        model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
+      } else {
+        // hmNeigen: behalte Neigung in X (bereits gesetzt oben), ergänze nur dezente Z-Sway
+        model.rotation.y = model.rotation.y; // unverändert
+        model.rotation.z = swayZ;
+      }
+    } else {
+      // Nicht talking & nicht hmNeigen: sanft zurück zur Basisrotation
+      if(!hmNeigen){
+        model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
+        model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
+        model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
+      } else {
+        // hmNeigen aktiv, Kopf bleibt geneigt nach vorne (X) — keine Rückdrehung nach links oder frontal
+        // (position.y wird weiterhin von der Atmung gesetzt)
+      }
     }
   }
   renderer.render(scene,camera);
@@ -231,8 +243,9 @@ if("webkitSpeechRecognition" in window){
       hmNeigen = true;
       hmStartTime = performance.now();
       hmStartRotX = model.rotation.x;
-      hmStartRotY = model.rotation.y;
-      speak("Hmmmmmm… einen Moment", true); 
+      hmStartRotY = model.rotation.y; // wird während Hm-Phase nicht verändert
+      // langsames "Hmm" als Übergang (slow=true)
+      speak("Hmmmmmm… einen Moment", true);
 
       fetch("/ask", {
         method:"POST",
@@ -241,20 +254,23 @@ if("webkitSpeechRecognition" in window){
       })
       .then(resp => resp.json())
       .then(data => {
-        // Reduzierte Kopf-Drehung zu Beginn der Antwort (15°)
-        targetRotY = baseRotY - 0.15;
-
+        // entfernte reduzierte linke Drehung: wir wollen keine Links-Drehung mehr
+        // Stattdessen lassen wir die Antwort sprechen starten, dort wird der Kopf wieder frontal gestellt.
         rising = true;
         riseStartTime = performance.now();
+
+        // Antwort sprechen (normal speed -> when utter.onstart runs with slow=false we will
+        // clear the hmNeigen and allow frontal Rückdrehung)
         speak(data.answer);
 
+        // Nachdem die Antwort endete, wieder Basis-Zustand aufbauen
         setTimeout(()=>{
           rising = true;
           riseStartTime = performance.now();
           hmStarted = false;
           lastTranscript = "";
-          targetRotY = baseRotY; // zurück zur Basis
-        }, 500); 
+          targetRotY = baseRotY; // Basis beibehalten
+        }, 500);
       })
       .catch(e => console.error("Fehler bei /ask:", e));
     }
@@ -267,7 +283,7 @@ let maleVoice = null;
 function loadVoices(){
   const voices = speechSynthesis.getVoices();
   maleVoice = voices.find(v=>/male|mann|stefan|markus/i.test(v.name)) ||
-              voices.find(v=>v.lang.startsWith("de")) ||
+              voices.find(v=>v.lang && v.lang.startsWith("de")) ||
               voices[0]||null;
 }
 speechSynthesis.onvoiceschanged = loadVoices;
@@ -281,8 +297,20 @@ function speak(text, slow=false){
   utter.pitch = 0.6;
   utter.voice = maleVoice;
   utter.volume = 0.6;
-  utter.onstart=()=>{ talking=true; };
-  utter.onend=()=>{ talking=false; };
+  // onstart: set talking, und wenn das Gesprächs-Statement (nicht das langsame "Hmm") startet,
+  // beenden wir die Hm-Neigung und bringen den Kopf frontal zurück.
+  utter.onstart = () => {
+    talking = true;
+    // slow===false → das ist die wirkliche Antwort (Antwort-Gespräch)
+    if(!slow){
+      // Kopf sofort wieder frontal ausrichten (hmNeigen darf enden)
+      hmNeigen = false;
+      // Zielrotation frontal (Basis). Wir vermeiden dabei Links-Drehungen — targetRotY bleibt basis.
+      targetRotY = baseRotY;
+      targetRotX = baseRotX;
+    }
+  };
+  utter.onend = () => { talking = false; };
   speechSynthesis.speak(utter);
 }
 
