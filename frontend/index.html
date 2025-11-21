@@ -157,34 +157,37 @@ function animate(){
   if(model){
     const tNow = Date.now();
 
-    // Atmung immer aktiv, verstärkt während Hm-Neigephase
+    // --- Atmung immer aktiv ---
     const breathe = Math.sin(tNow*0.0015)*(hmNeigen?0.012:0.008) + Math.sin(tNow*0.0007)*(hmNeigen?0.006:0.004);
     model.position.y = baseY + breathe;
 
-    // Hm-Neigephase: nur nach linke Seite des Kopfes + leicht nach vorne
+    // --- Hm-Neigephase: nur links + leicht nach vorne ---
     if(hmNeigen){
       const t = (performance.now() - hmStartTime) / hmDuration;
       const easeT = t > 1 ? 1 : t;
-      model.rotation.x = hmStartRotX + 0.25 * easeT; // leicht nach vorne
-      model.rotation.y = hmStartRotY - 0.25 * easeT; // nach linke Seite des Kopfes
+      model.rotation.x = hmStartRotX + 0.25 * easeT;      // leicht nach vorne
+      model.rotation.y = hmStartRotY - 0.25 * easeT;      // nach linke Seite des Kopfes
       model.rotation.z = 0;
     } 
+    // --- Antwortphase: Kopf zurück auf frontal, keine Rechtsbewegung ---
     else if(talking){
-      // Antwortphase: Kopf zurück auf frontal, keine Rechtsbewegung
       const swayY = Math.sin(tNow*0.0012)*0.02 + Math.sin(tNow*0.0023)*0.01;
       const swayX = Math.sin(tNow*0.0017)*0.015 + Math.sin(tNow*0.0021)*0.008;
       const swayZ = Math.sin(tNow*0.0015)*0.004;
 
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.08); // frontal
+      // Ziel: frontal zurück, kein Rechtsausweichen
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2 + swayY, 0.08);
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
       model.rotation.z = swayZ;
-    } else if(!hmNeigen){
-      // Ruheposition: alles bisherige Verhalten bleibt unverändert
+    } 
+    // --- Alles andere unverändert ---
+    else {
       model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
       model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
     }
   }
+
   renderer.render(scene,camera);
 }
 
