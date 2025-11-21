@@ -152,62 +152,79 @@ loader.load("./avatar.glb", gltf=>{
   loadingText.textContent="Fehler beim Laden des Avatars.";
 });
 
-function animate(){
+function animate() {
   requestAnimationFrame(animate);
-  if(model){
+  if(!model) return;
 
-    const now = performance.now();
+  const now = performance.now();
+  const tNow = Date.now();
 
-    // Aufrichten nach Begrüßung / Antwort
-    if(rising){
-      const t = (now - riseStartTime) / riseDuration;
-      const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
-      targetRotY = baseRotY * (1 - easeT);
-      targetRotX = baseRotX * (1 - easeT);
-      if(t >= 1) rising = false;
-    }
+  // ---------------------------------------
+  // Aufrichten nach Begrüßung oder Antwort
+  // ---------------------------------------
+  if(rising) {
+    const t = (now - riseStartTime) / riseDuration;
+    const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
 
-    // Hm-Phase: langsam nach vorne-links neigen
-    if(hmNeigen){
-      const t = (now - hmStartTime) / hmDuration;
-      const hmX = hmStartRotX + 0.25 * (t >= 1 ? 1 : t); // nach vorne
-      const hmY = hmStartRotY + 0.25 * (t >= 1 ? 1 : t); // nach links
-      model.rotation.x = hmX;
-      model.rotation.y = hmY;
-      // Atmung bleibt aktiv
-      const breathe = Math.sin(Date.now()*0.0015)*0.008 + Math.sin(Date.now()*0.0007)*0.004;
-      model.position.y = baseY + breathe;
-      if(t >= 1) hmNeigen = false;
-    }
+    // Kopf langsam in Richtung frontal
+    targetRotY = baseRotY * (1 - easeT);
+    targetRotX = baseRotX * (1 - easeT);
 
-    // Talking Animation
-    if(talking && !hmNeigen){
-      const t = Date.now();
-      // Atmung immer aktiv
-      const breathe = Math.sin(t*0.0015)*0.008 + Math.sin(t*0.0007)*0.004;
-      model.position.y = baseY + breathe;
-
-      // Subtile Kopfbewegungen
-      const swayY = Math.sin(t*0.0012)*0.02 + Math.sin(t*0.0023)*0.01;
-      const swayX = Math.sin(t*0.0017)*0.015 + Math.sin(t*0.0021)*0.008;
-      const swayZ = Math.sin(t*0.0015)*0.004;
-
-      // Kopf langsam auf frontal zurückdrehen
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.08);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
-      model.rotation.z = swayZ;
-    } else if(!hmNeigen){
-      // Basisposition, Atmung aktiv
-      const t = Date.now();
-      const breathe = Math.sin(t*0.0015)*0.008 + Math.sin(t*0.0007)*0.004;
-      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY + breathe, 0.02);
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
-      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
-    }
-
+    if(t >= 1) rising = false;
   }
-  renderer.render(scene,camera);
+
+  // ---------------------------------------
+  // Hm-Neigephase (vor Denken)
+  // ---------------------------------------
+  if(hmNeigen) {
+    const t = (now - hmStartTime) / hmDuration;
+
+    const hmX = hmStartRotX + 0.25 * (t >= 1 ? 1 : t); // nach vorne neigen
+    const hmY = hmStartRotY + 0.25 * (t >= 1 ? 1 : t); // nach links neigen
+
+    model.rotation.x = hmX;
+    model.rotation.y = hmY;
+
+    // Natürliche Atmung (verstärkt)
+    const breathe = Math.sin(tNow*0.0015)*0.015 + Math.sin(tNow*0.0007)*0.008;
+    model.position.y = baseY + breathe;
+
+    if(t >= 1) hmNeigen = false; // bleibt gebeugt bis Antwort beginnt
+  }
+
+  // ---------------------------------------
+  // Talking (Antwort läuft)
+  // ---------------------------------------
+  if(talking) {
+
+    // Natürliche Atmung
+    const breathe = Math.sin(tNow*0.0015)*0.015 + Math.sin(tNow*0.0007)*0.008;
+    model.position.y = baseY + breathe;
+
+    // Subtile Kopfbewegungen
+    const swayY = Math.sin(tNow*0.0012)*0.02 + Math.sin(tNow*0.0023)*0.01;
+    const swayX = Math.sin(tNow*0.0017)*0.015 + Math.sin(tNow*0.0021)*0.008;
+    const swayZ = Math.sin(tNow*0.0015)*0.004;
+
+    // Kopf GANZ LANGSAM zurück auf frontal
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.04);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.04);
+    model.rotation.z = swayZ;
+
+  } else if(!hmNeigen) {
+
+    // ---------------------------------------
+    // Normale Idle-Position (mit Atmung)
+    // ---------------------------------------
+    const breathe = Math.sin(tNow*0.0015)*0.015 + Math.sin(tNow*0.0007)*0.008;
+
+    model.position.y = THREE.MathUtils.lerp(model.position.y, baseY + breathe, 0.02);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
+    model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
+  }
+
+  renderer.render(scene, camera);
 }
 
 window.addEventListener("resize", ()=>{
