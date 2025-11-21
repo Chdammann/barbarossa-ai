@@ -155,9 +155,12 @@ loader.load("./avatar.glb", gltf=>{
 function animate(){
   requestAnimationFrame(animate);
   if(model){
-    // Aufrichten nach Begrüßung
+
+    const now = performance.now();
+
+    // Aufrichten nach Begrüßung / Antwort
     if(rising){
-      const t = (performance.now() - riseStartTime) / riseDuration;
+      const t = (now - riseStartTime) / riseDuration;
       const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
       targetRotY = baseRotY * (1 - easeT);
       targetRotX = baseRotX * (1 - easeT);
@@ -166,29 +169,43 @@ function animate(){
 
     // Hm-Phase: langsam nach vorne-links neigen
     if(hmNeigen){
-      const t = (performance.now() - hmStartTime) / hmDuration;
-      if(t >= 1){
-        hmNeigen = false;
-        model.rotation.x = hmStartRotX + 0.3;
-        model.rotation.y = hmStartRotY + 0.3; 
-      } else {
-        model.rotation.x = hmStartRotX + 0.3 * t;
-        model.rotation.y = hmStartRotY + 0.3 * t;
-      }
+      const t = (now - hmStartTime) / hmDuration;
+      const hmX = hmStartRotX + 0.25 * (t >= 1 ? 1 : t); // nach vorne
+      const hmY = hmStartRotY + 0.25 * (t >= 1 ? 1 : t); // nach links
+      model.rotation.x = hmX;
+      model.rotation.y = hmY;
+      // Atmung bleibt aktiv
+      const breathe = Math.sin(Date.now()*0.0015)*0.008 + Math.sin(Date.now()*0.0007)*0.004;
+      model.position.y = baseY + breathe;
+      if(t >= 1) hmNeigen = false;
     }
 
-    // Normal Talking Animation
+    // Talking Animation
     if(talking && !hmNeigen){
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(Date.now()*0.0015)*0.03 - Math.PI/2, 0.08);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(Date.now()*0.0019)*0.015, 0.08);
-      model.rotation.z = Math.sin(Date.now()*0.0012)*0.015;
-      model.position.y = baseY + Math.sin(Date.now()*0.01)*0.002;
+      const t = Date.now();
+      // Atmung immer aktiv
+      const breathe = Math.sin(t*0.0015)*0.008 + Math.sin(t*0.0007)*0.004;
+      model.position.y = baseY + breathe;
+
+      // Subtile Kopfbewegungen
+      const swayY = Math.sin(t*0.0012)*0.02 + Math.sin(t*0.0023)*0.01;
+      const swayX = Math.sin(t*0.0017)*0.015 + Math.sin(t*0.0021)*0.008;
+      const swayZ = Math.sin(t*0.0015)*0.004;
+
+      // Kopf langsam auf frontal zurückdrehen
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.08);
+      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
+      model.rotation.z = swayZ;
     } else if(!hmNeigen){
+      // Basisposition, Atmung aktiv
+      const t = Date.now();
+      const breathe = Math.sin(t*0.0015)*0.008 + Math.sin(t*0.0007)*0.004;
+      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY + breathe, 0.02);
       model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
       model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
-      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.02);
     }
+
   }
   renderer.render(scene,camera);
 }
