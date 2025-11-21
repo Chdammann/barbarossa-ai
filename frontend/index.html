@@ -97,19 +97,27 @@ footer a:hover { text-decoration: underline; }
 <script>
 let model, talking=false, greeted=false;
 let lastTranscript = "";
-let hmNeigen = false, hmStartTime = 0, hmStartRotX = 0, hmStartRotY = 0;
+let hmNeigen = false;
+let hmStartTime = 0;
 const hmDuration = 4000;
-let rising = false, riseStartTime = 0, hmStarted = false;
-const riseDuration = 1200;
+let hmStartRotX = 0;
+let hmStartRotY = 0;
 
-let baseRotY = -0.35, baseRotX = 0.25;
-let targetRotY = baseRotY, targetRotX = baseRotX;
+let rising = false;
+let riseStartTime = 0;
+const riseDuration = 1200;
+let hmStarted = false;
+let hmCompleted = false; // Neues Flag: Hm-Neigephase fertig
+
+let baseRotY = -0.35;
+let baseRotX = 0.25;
+let targetRotY = baseRotY;
+let targetRotX = baseRotX;
 let baseY = 0;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0,0,2.8);
-
 const renderer = new THREE.WebGLRenderer({canvas: document.getElementById("avatarCanvas"), antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -147,57 +155,64 @@ loader.load("./avatar.glb", gltf=>{
 
 function animate(){
   requestAnimationFrame(animate);
-  if(!model) return;
+  if(model){
+    const t = Date.now();
+    // Atmung immer, stärker
+    const breathe = Math.sin(t*0.0015)*0.012 + Math.sin(t*0.0007)*0.006;
+    model.position.y = baseY + breathe;
 
-  const tNow = Date.now();
+    // Aufrichten nach Begrüßung
+    if(rising){
+      const tr = (performance.now() - riseStartTime) / riseDuration;
+      const easeT = tr < 0 ? 0 : (tr > 1 ? 1 : (-Math.cos(Math.PI * tr)/2 + 0.5));
+      targetRotY = baseRotY * (1 - easeT);
+      targetRotX = baseRotX * (1 - easeT);
+      if(tr >= 1) rising = false;
+    }
 
-  // Atmung läuft immer, stärker
-  const breathe = Math.sin(tNow*0.0015)*0.012 + Math.sin(tNow*0.0007)*0.006;
-  model.position.y = baseY + breathe;
+    // Hm-Phase: langsam nach vorne neigen
+    if(hmNeigen){
+      const th = (performance.now() - hmStartTime) / hmDuration;
+      if(th >= 1){
+        hmNeigen = false;
+        hmCompleted = true; // Neigung abgeschlossen
+        model.rotation.x = hmStartRotX + 0.25;
+        model.rotation.y = hmStartRotY + 0.25; 
+      } else {
+        model.rotation.x = hmStartRotX + 0.25 * th;
+        model.rotation.y = hmStartRotY + 0.25 * th; 
+      }
+    }
 
-  // Aufrichten nach Begrüßung
-  if(rising){
-    const t = (performance.now() - riseStartTime) / riseDuration;
-    const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
-    targetRotY = baseRotY * (1 - easeT);
-    targetRotX = baseRotX * (1 - easeT);
-    if(t >= 1) rising = false;
-  }
+    // Talking Animation mit Kopfbewegungen
+    if(talking){
+      const swayY = Math.sin(t*0.0012)*0.02 + Math.sin(t*0.0023)*0.01;
+      const swayX = Math.sin(t*0.0017)*0.015 + Math.sin(t*0.0021)*0.008;
+      const swayZ = Math.sin(t*0.0015)*0.004;
 
-  // Hm-Phase: langsam nach vorne-links neigen, Kopf bleibt bis Antwort
-  if(hmNeigen){
-    const t = (performance.now() - hmStartTime) / hmDuration;
-    if(t >= 1){
-      hmNeigen = false;
-      // Kopf bleibt nach Neigung, kein Zurück
-      targetRotX = hmStartRotX + 0.25;
-      targetRotY = hmStartRotY + 0.25;
-    } else {
-      model.rotation.x = hmStartRotX + 0.25 * t;
-      model.rotation.y = hmStartRotY + 0.25 * t;
+      if(!hmNeigen){ 
+        model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.08);
+        model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
+      }
+      model.rotation.z = swayZ;
+    } else if(!hmNeigen){
+      // Rückdrehung nach frontal nur, wenn Hm abgeschlossen und Antwort kommt
+      if(hmCompleted){
+        model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY - Math.PI/2, 0.02);
+        model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.02);
+      } else {
+        // während Hm-Neigung nicht zurückdrehen
+        model.rotation.y = model.rotation.y;
+        model.rotation.x = model.rotation.x;
+      }
+      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
     }
   }
-
-  // Talking Animation mit Kopfbewegungen
-  if(talking){
-    const swayY = Math.sin(tNow*0.0012)*0.02 + Math.sin(tNow*0.0023)*0.01;
-    const swayX = Math.sin(tNow*0.0017)*0.015 + Math.sin(tNow*0.0021)*0.008;
-    const swayZ = Math.sin(tNow*0.0015)*0.004;
-
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.08);
-    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
-    model.rotation.z = swayZ;
-  } else if(!hmNeigen){
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
-    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
-    model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
-  }
-
   renderer.render(scene,camera);
 }
 
 window.addEventListener("resize", ()=>{
-  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.aspect=window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth,window.innerHeight);
 });
@@ -227,7 +242,8 @@ if("webkitSpeechRecognition" in window){
       hmStartTime = performance.now();
       hmStartRotX = model.rotation.x;
       hmStartRotY = model.rotation.y;
-      speak("Hmmmmmm… einen Moment", true);
+      hmCompleted = false;
+      speak("Hmmmmmm… einen Moment", true); 
 
       fetch("/ask", {
         method:"POST",
@@ -236,9 +252,7 @@ if("webkitSpeechRecognition" in window){
       })
       .then(resp => resp.json())
       .then(data => {
-        // Kopf zurück zur Frontalposition zu Beginn der Antwort
-        targetRotY = baseRotY - 0.15;
-
+        targetRotY = baseRotY; // direkt auf frontal zurück
         rising = true;
         riseStartTime = performance.now();
         speak(data.answer);
@@ -248,8 +262,7 @@ if("webkitSpeechRecognition" in window){
           riseStartTime = performance.now();
           hmStarted = false;
           lastTranscript = "";
-          targetRotY = baseRotY;
-        }, 500);
+        }, 500); 
       })
       .catch(e => console.error("Fehler bei /ask:", e));
     }
@@ -277,7 +290,7 @@ function speak(text, slow=false){
   utter.voice = maleVoice;
   utter.volume = 0.6;
   utter.onstart=()=>{ talking=true; };
-  utter.onend=()=>{ talking=false; };
+  utter.onend=()=>{ talking=false; hmCompleted=true; };
   speechSynthesis.speak(utter);
 }
 
