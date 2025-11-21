@@ -10,6 +10,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Frag Friedrich Barbarossa</title>
+<style>
 body {
   margin: 0;
   overflow: hidden;
@@ -92,8 +93,9 @@ footer a:hover { text-decoration: underline; }
 <footer>
 © 2025 <a href="https://christoph-dammann.de" target="_blank">Dr. Christoph Dammann</a>
 </footer>
- <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.min.js?v=2"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.min.js?v=2"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/examples/js/loaders/GLTFLoader.js?v=2"></script>
+<script>
 let model, talking=false, greeted=false;
 let lastTranscript = "";
 let hmNeigen = false;
@@ -141,7 +143,7 @@ loader.load("./avatar.glb", gltf=>{
   model.scale.set(scaleFactor, scaleFactor, scaleFactor);
   const center = box.getCenter(new THREE.Vector3());
   model.position.sub(center);
-  model.rotation.y = baseRotY - Math.PI/2;
+  model.rotation.y = baseRotY;
   model.rotation.x = baseRotX;
   scene.add(model);
   loadingText.style.display="none";
@@ -158,67 +160,38 @@ function animate() {
   const now = performance.now();
   const tNow = Date.now();
 
-  // ---------------------------------------
-  // Aufrichten nach Begrüßung oder Antwort
-  // ---------------------------------------
   if(rising) {
     const t = (now - riseStartTime) / riseDuration;
     const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
-
-    // Kopf langsam in Richtung frontal
     targetRotY = baseRotY * (1 - easeT);
     targetRotX = baseRotX * (1 - easeT);
-
     if(t >= 1) rising = false;
   }
 
-  // ---------------------------------------
-  // Hm-Neigephase (vor Denken)
-  // ---------------------------------------
   if(hmNeigen) {
     const t = (now - hmStartTime) / hmDuration;
-
-    const hmX = hmStartRotX + 0.25 * (t >= 1 ? 1 : t); // nach vorne neigen
-    const hmY = hmStartRotY + 0.25 * (t >= 1 ? 1 : t); // nach links neigen
-
+    const hmX = hmStartRotX + 0.25 * (t >= 1 ? 1 : t);
+    const hmY = hmStartRotY + 0.25 * (t >= 1 ? 1 : t);
     model.rotation.x = hmX;
     model.rotation.y = hmY;
-
-    // Natürliche Atmung (verstärkt)
     const breathe = Math.sin(tNow*0.0015)*0.015 + Math.sin(tNow*0.0007)*0.008;
     model.position.y = baseY + breathe;
-
-    if(t >= 1) hmNeigen = false; // bleibt gebeugt bis Antwort beginnt
+    if(t >= 1) hmNeigen = false;
   }
 
-  // ---------------------------------------
-  // Talking (Antwort läuft)
-  // ---------------------------------------
   if(talking) {
-
-    // Natürliche Atmung
     const breathe = Math.sin(tNow*0.0015)*0.015 + Math.sin(tNow*0.0007)*0.008;
     model.position.y = baseY + breathe;
-
-    // Subtile Kopfbewegungen
     const swayY = Math.sin(tNow*0.0012)*0.02 + Math.sin(tNow*0.0023)*0.01;
     const swayX = Math.sin(tNow*0.0017)*0.015 + Math.sin(tNow*0.0021)*0.008;
     const swayZ = Math.sin(tNow*0.0015)*0.004;
-
-    // Kopf GANZ LANGSAM zurück auf frontal
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.04);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY, 0.04);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.04);
     model.rotation.z = swayZ;
-
   } else if(!hmNeigen) {
-
-    // ---------------------------------------
-    // Normale Idle-Position (mit Atmung)
-    // ---------------------------------------
     const breathe = Math.sin(tNow*0.0015)*0.015 + Math.sin(tNow*0.0007)*0.008;
-
     model.position.y = THREE.MathUtils.lerp(model.position.y, baseY + breathe, 0.02);
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY, 0.02);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
     model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
   }
@@ -241,6 +214,23 @@ if("webkitSpeechRecognition" in window){
   recognition.lang="de-DE";
   recognition.continuous=false;
   recognition.interimResults=false;
+
+  recognition.onresult = (
+    window.addEventListener("resize", ()=>{
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+const micBtn = document.getElementById("micBtn");
+const micNotice = document.getElementById("micNotice");
+let recognizing = false, recognition;
+
+if("webkitSpeechRecognition" in window){
+  recognition = new webkitSpeechRecognition();
+  recognition.lang = "de-DE";
+  recognition.continuous = false;
+  recognition.interimResults = false;
 
   recognition.onresult = (event) => {
     lastTranscript = event.results[0][0].transcript;
@@ -266,13 +256,12 @@ if("webkitSpeechRecognition" in window){
       })
       .then(resp => resp.json())
       .then(data => {
+        // Antwortbeginn → Rückdrehung starten
         rising = true;
         riseStartTime = performance.now();
         speak(data.answer);
 
         setTimeout(()=>{
-          rising = true;
-          riseStartTime = performance.now();
           hmStarted = false;
           lastTranscript = "";
         }, 500); 
@@ -281,7 +270,7 @@ if("webkitSpeechRecognition" in window){
     }
   };
 }else{
-  micNotice.textContent="🎤 Sprachsteuerung wird im Browser nicht unterstützt. Bitte Chrome/Edge nutzen.";
+  micNotice.textContent = "🎤 Sprachsteuerung wird im Browser nicht unterstützt. Bitte Chrome/Edge nutzen.";
 }
 
 let maleVoice = null;
@@ -289,7 +278,7 @@ function loadVoices(){
   const voices = speechSynthesis.getVoices();
   maleVoice = voices.find(v=>/male|mann|stefan|markus/i.test(v.name)) ||
               voices.find(v=>v.lang.startsWith("de")) ||
-              voices[0]||null;
+              voices[0] || null;
 }
 speechSynthesis.onvoiceschanged = loadVoices;
 loadVoices();
@@ -297,13 +286,13 @@ loadVoices();
 function speak(text, slow=false){
   if(!text || !maleVoice) return;
   const utter = new SpeechSynthesisUtterance(text);
-  utter.lang="de-DE";
+  utter.lang = "de-DE";
   utter.rate = slow ? 0.4 : 0.95;
   utter.pitch = 0.6;
   utter.voice = maleVoice;
   utter.volume = 0.6;
-  utter.onstart=()=>{ talking=true; };
-  utter.onend=()=>{ talking=false; };
+  utter.onstart = ()=>{ talking = true; };
+  utter.onend = ()=>{ talking = false; };
   speechSynthesis.speak(utter);
 }
 
