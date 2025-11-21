@@ -107,7 +107,6 @@ let rising = false;
 let riseStartTime = 0;
 const riseDuration = 1200;
 let hmStarted = false;
-let hmCompleted = false; // Neues Flag: Hm-Neigephase fertig
 
 let baseRotY = -0.35;
 let baseRotX = 0.25;
@@ -157,6 +156,7 @@ function animate(){
   requestAnimationFrame(animate);
   if(model){
     const t = Date.now();
+
     // Atmung immer, stärker
     const breathe = Math.sin(t*0.0015)*0.012 + Math.sin(t*0.0007)*0.006;
     model.position.y = baseY + breathe;
@@ -170,41 +170,33 @@ function animate(){
       if(tr >= 1) rising = false;
     }
 
-    // Hm-Phase: langsam nach vorne neigen
+    // Hm-Phase: langsam nach vorne-links neigen, Kopf bleibt danach bis Antwort
     if(hmNeigen){
       const th = (performance.now() - hmStartTime) / hmDuration;
       if(th >= 1){
         hmNeigen = false;
-        hmCompleted = true; // Neigung abgeschlossen
+        // Keine automatische Rückdrehung, Kopf bleibt
         model.rotation.x = hmStartRotX + 0.25;
         model.rotation.y = hmStartRotY + 0.25; 
       } else {
         model.rotation.x = hmStartRotX + 0.25 * th;
-        model.rotation.y = hmStartRotY + 0.25 * th; 
+        model.rotation.y = hmStartRotY + 0.25 * th;
       }
     }
 
-    // Talking Animation mit Kopfbewegungen
+    // Talking Animation mit lebendigen Kopfbewegungen
     if(talking){
       const swayY = Math.sin(t*0.0012)*0.02 + Math.sin(t*0.0023)*0.01;
       const swayX = Math.sin(t*0.0017)*0.015 + Math.sin(t*0.0021)*0.008;
       const swayZ = Math.sin(t*0.0015)*0.004;
 
-      if(!hmNeigen){ 
-        model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.08);
-        model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
-      }
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.08);
+      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
       model.rotation.z = swayZ;
     } else if(!hmNeigen){
-      // Rückdrehung nach frontal nur, wenn Hm abgeschlossen und Antwort kommt
-      if(hmCompleted){
-        model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY - Math.PI/2, 0.02);
-        model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.02);
-      } else {
-        // während Hm-Neigung nicht zurückdrehen
-        model.rotation.y = model.rotation.y;
-        model.rotation.x = model.rotation.x;
-      }
+      // Rückkehr zur Basis nur nach Antwort
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
+      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
       model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
     }
   }
@@ -242,7 +234,6 @@ if("webkitSpeechRecognition" in window){
       hmStartTime = performance.now();
       hmStartRotX = model.rotation.x;
       hmStartRotY = model.rotation.y;
-      hmCompleted = false;
       speak("Hmmmmmm… einen Moment", true); 
 
       fetch("/ask", {
@@ -252,7 +243,9 @@ if("webkitSpeechRecognition" in window){
       })
       .then(resp => resp.json())
       .then(data => {
-        targetRotY = baseRotY; // direkt auf frontal zurück
+        // Ziel-Kopfposition für Antwort
+        targetRotY = baseRotY - 0.15;
+
         rising = true;
         riseStartTime = performance.now();
         speak(data.answer);
@@ -262,6 +255,7 @@ if("webkitSpeechRecognition" in window){
           riseStartTime = performance.now();
           hmStarted = false;
           lastTranscript = "";
+          targetRotY = baseRotY; // Rückkehr zur Basis
         }, 500); 
       })
       .catch(e => console.error("Fehler bei /ask:", e));
@@ -290,7 +284,7 @@ function speak(text, slow=false){
   utter.voice = maleVoice;
   utter.volume = 0.6;
   utter.onstart=()=>{ talking=true; };
-  utter.onend=()=>{ talking=false; hmCompleted=true; };
+  utter.onend=()=>{ talking=false; };
   speechSynthesis.speak(utter);
 }
 
