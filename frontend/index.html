@@ -97,26 +97,19 @@ footer a:hover { text-decoration: underline; }
 <script>
 let model, talking=false, greeted=false;
 let lastTranscript = "";
-let hmNeigen = false;
-let hmStartTime = 0;
+let hmNeigen = false, hmStartTime = 0, hmStartRotX = 0, hmStartRotY = 0;
 const hmDuration = 4000;
-let hmStartRotX = 0;
-let hmStartRotY = 0;
-
-let rising = false;
-let riseStartTime = 0;
+let rising = false, riseStartTime = 0, hmStarted = false;
 const riseDuration = 1200;
-let hmStarted = false;
 
-let baseRotY = -0.35;
-let baseRotX = 0.25;
-let targetRotY = baseRotY;
-let targetRotX = baseRotX;
+let baseRotY = -0.35, baseRotX = 0.25;
+let targetRotY = baseRotY, targetRotX = baseRotX;
 let baseY = 0;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0,0,2.8);
+
 const renderer = new THREE.WebGLRenderer({canvas: document.getElementById("avatarCanvas"), antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -154,63 +147,57 @@ loader.load("./avatar.glb", gltf=>{
 
 function animate(){
   requestAnimationFrame(animate);
-  if(model){
-    const t = Date.now();
-    
-    // Aufrichten nach Begrüßung
-    if(rising){
-      const rt = (performance.now() - riseStartTime) / riseDuration;
-      const easeT = rt < 0 ? 0 : (rt > 1 ? 1 : (-Math.cos(Math.PI * rt)/2 + 0.5));
-      targetRotY = baseRotY * (1 - easeT);
-      targetRotX = baseRotX * (1 - easeT);
-      if(rt >= 1) rising = false;
-    }
+  if(!model) return;
 
-    // Hm-Phase: langsam nach vorne-links neigen
-    if(hmNeigen){
-      const tHm = (performance.now() - hmStartTime) / hmDuration;
-      if(tHm >= 1){
-        hmNeigen = false;
-        model.rotation.x = hmStartRotX + 0.25;
-        model.rotation.y = hmStartRotY + 0.25; 
-      } else {
-        model.rotation.x = hmStartRotX + 0.25 * tHm;
-        model.rotation.y = hmStartRotY + 0.25 * tHm;
-      }
-    }
+  const tNow = Date.now();
 
-    // Atmung immer aktiv, stärker
-    const breathe = Math.sin(t*0.0015)*0.015 + Math.sin(t*0.0007)*0.008;
-    model.position.y = baseY + breathe;
+  // Atmung läuft immer, stärker
+  const breathe = Math.sin(tNow*0.0015)*0.012 + Math.sin(tNow*0.0007)*0.006;
+  model.position.y = baseY + breathe;
 
-    // Kopfbewegungen
-    if(talking || hmNeigen){
-      const swayY = Math.sin(t*0.0012)*0.02 + Math.sin(t*0.0023)*0.01;
-      const swayX = Math.sin(t*0.0017)*0.015 + Math.sin(t*0.0021)*0.008;
-      const swayZ = Math.sin(t*0.0015)*0.004;
-
-      if(hmNeigen){
-        model.rotation.x = hmStartRotX + 0.25 + swayX;
-        model.rotation.y = hmStartRotY + 0.25 + swayY;
-      } else {
-        model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2 + swayY, 0.08);
-        model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
-      }
-      model.rotation.z = swayZ;
-    } else {
-      // Rückkehr auf frontal
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.08); 
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.08);
-      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.08);
-      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.08);
-    }
-
-    renderer.render(scene,camera);
+  // Aufrichten nach Begrüßung
+  if(rising){
+    const t = (performance.now() - riseStartTime) / riseDuration;
+    const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
+    targetRotY = baseRotY * (1 - easeT);
+    targetRotX = baseRotX * (1 - easeT);
+    if(t >= 1) rising = false;
   }
+
+  // Hm-Phase: langsam nach vorne-links neigen, Kopf bleibt bis Antwort
+  if(hmNeigen){
+    const t = (performance.now() - hmStartTime) / hmDuration;
+    if(t >= 1){
+      hmNeigen = false;
+      // Kopf bleibt nach Neigung, kein Zurück
+      targetRotX = hmStartRotX + 0.25;
+      targetRotY = hmStartRotY + 0.25;
+    } else {
+      model.rotation.x = hmStartRotX + 0.25 * t;
+      model.rotation.y = hmStartRotY + 0.25 * t;
+    }
+  }
+
+  // Talking Animation mit Kopfbewegungen
+  if(talking){
+    const swayY = Math.sin(tNow*0.0012)*0.02 + Math.sin(tNow*0.0023)*0.01;
+    const swayX = Math.sin(tNow*0.0017)*0.015 + Math.sin(tNow*0.0021)*0.008;
+    const swayZ = Math.sin(tNow*0.0015)*0.004;
+
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.08);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
+    model.rotation.z = swayZ;
+  } else if(!hmNeigen){
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
+    model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
+  }
+
+  renderer.render(scene,camera);
 }
 
 window.addEventListener("resize", ()=>{
-  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.aspect = window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth,window.innerHeight);
 });
@@ -240,7 +227,7 @@ if("webkitSpeechRecognition" in window){
       hmStartTime = performance.now();
       hmStartRotX = model.rotation.x;
       hmStartRotY = model.rotation.y;
-      speak("Hmmmmmm… einen Moment", true); 
+      speak("Hmmmmmm… einen Moment", true);
 
       fetch("/ask", {
         method:"POST",
@@ -249,7 +236,7 @@ if("webkitSpeechRecognition" in window){
       })
       .then(resp => resp.json())
       .then(data => {
-        // Kopf leicht gedreht zu Beginn der Antwort
+        // Kopf zurück zur Frontalposition zu Beginn der Antwort
         targetRotY = baseRotY - 0.15;
 
         rising = true;
@@ -261,8 +248,8 @@ if("webkitSpeechRecognition" in window){
           riseStartTime = performance.now();
           hmStarted = false;
           lastTranscript = "";
-          targetRotY = baseRotY; // frontal
-        }, 500); 
+          targetRotY = baseRotY;
+        }, 500);
       })
       .catch(e => console.error("Fehler bei /ask:", e));
     }
