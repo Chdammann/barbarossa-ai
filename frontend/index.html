@@ -5,9 +5,6 @@
 <link rel="apple-touch-icon" href="avatar.png">
 <meta name="theme-color" content="#000000">
 <meta charset="UTF-8" />
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Frag Friedrich Barbarossa</title>
 <style>
@@ -93,14 +90,16 @@ footer a:hover { text-decoration: underline; }
 <footer>
 © 2025 <a href="https://christoph-dammann.de" target="_blank">Dr. Christoph Dammann</a>
 </footer>
-<script src="https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.min.js?v=2"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.146.0/examples/js/loaders/GLTFLoader.js?v=2"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.146.0/examples/js/loaders/GLTFLoader.js"></script>
+
 <script>
 let model, talking=false, greeted=false;
 let lastTranscript = "";
 let hmNeigen = false;
 let hmStartTime = 0;
-const hmDuration = 2000;
+const hmDuration = 4000;
 let hmStartRotX = 0;
 let hmStartRotY = 0;
 
@@ -143,7 +142,7 @@ loader.load("./avatar.glb", gltf=>{
   model.scale.set(scaleFactor, scaleFactor, scaleFactor);
   const center = box.getCenter(new THREE.Vector3());
   model.position.sub(center);
-  model.rotation.y = baseRotY;
+  model.rotation.y = baseRotY - Math.PI/2;
   model.rotation.x = baseRotX;
   scene.add(model);
   loadingText.style.display="none";
@@ -153,50 +152,61 @@ loader.load("./avatar.glb", gltf=>{
   loadingText.textContent="Fehler beim Laden des Avatars.";
 });
 
-function animate() {
+function animate(){
   requestAnimationFrame(animate);
-  if(!model) return;
+  if(model){
+    const t = Date.now();
+    
+    // Aufrichten nach Begrüßung
+    if(rising){
+      const rt = (performance.now() - riseStartTime) / riseDuration;
+      const easeT = rt < 0 ? 0 : (rt > 1 ? 1 : (-Math.cos(Math.PI * rt)/2 + 0.5));
+      targetRotY = baseRotY * (1 - easeT);
+      targetRotX = baseRotX * (1 - easeT);
+      if(rt >= 1) rising = false;
+    }
 
-  const now = performance.now();
-  const tNow = Date.now();
+    // Hm-Phase: langsam nach vorne-links neigen
+    if(hmNeigen){
+      const tHm = (performance.now() - hmStartTime) / hmDuration;
+      if(tHm >= 1){
+        hmNeigen = false;
+        model.rotation.x = hmStartRotX + 0.25;
+        model.rotation.y = hmStartRotY + 0.25; 
+      } else {
+        model.rotation.x = hmStartRotX + 0.25 * tHm;
+        model.rotation.y = hmStartRotY + 0.25 * tHm;
+      }
+    }
 
-  if(rising) {
-    const t = (now - riseStartTime) / riseDuration;
-    const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
-    targetRotY = baseRotY * (1 - easeT);
-    targetRotX = baseRotX * (1 - easeT);
-    if(t >= 1) rising = false;
-  }
-
-  if(hmNeigen) {
-    const t = (now - hmStartTime) / hmDuration;
-    const hmX = hmStartRotX + 0.25 * (t >= 1 ? 1 : t);
-    const hmY = hmStartRotY + 0.25 * (t >= 1 ? 1 : t);
-    model.rotation.x = hmX;
-    model.rotation.y = hmY;
-    const breathe = Math.sin(tNow*0.0015)*0.015 + Math.sin(tNow*0.0007)*0.008;
+    // Atmung immer aktiv, stärker
+    const breathe = Math.sin(t*0.0015)*0.015 + Math.sin(t*0.0007)*0.008;
     model.position.y = baseY + breathe;
-    if(t >= 1) hmNeigen = false;
-  }
 
-  if(talking) {
-    const breathe = Math.sin(tNow*0.0015)*0.015 + Math.sin(tNow*0.0007)*0.008;
-    model.position.y = baseY + breathe;
-    const swayY = Math.sin(tNow*0.0012)*0.02 + Math.sin(tNow*0.0023)*0.01;
-    const swayX = Math.sin(tNow*0.0017)*0.015 + Math.sin(tNow*0.0021)*0.008;
-    const swayZ = Math.sin(tNow*0.0015)*0.004;
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY, 0.04);
-    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.04);
-    model.rotation.z = swayZ;
-  } else if(!hmNeigen) {
-    const breathe = Math.sin(tNow*0.0015)*0.015 + Math.sin(tNow*0.0007)*0.008;
-    model.position.y = THREE.MathUtils.lerp(model.position.y, baseY + breathe, 0.02);
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY, 0.02);
-    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
-    model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
-  }
+    // Kopfbewegungen
+    if(talking || hmNeigen){
+      const swayY = Math.sin(t*0.0012)*0.02 + Math.sin(t*0.0023)*0.01;
+      const swayX = Math.sin(t*0.0017)*0.015 + Math.sin(t*0.0021)*0.008;
+      const swayZ = Math.sin(t*0.0015)*0.004;
 
-  renderer.render(scene, camera);
+      if(hmNeigen){
+        model.rotation.x = hmStartRotX + 0.25 + swayX;
+        model.rotation.y = hmStartRotY + 0.25 + swayY;
+      } else {
+        model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2 + swayY, 0.08);
+        model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
+      }
+      model.rotation.z = swayZ;
+    } else {
+      // Rückkehr auf frontal
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.08); 
+      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.08);
+      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.08);
+      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.08);
+    }
+
+    renderer.render(scene,camera);
+  }
 }
 
 window.addEventListener("resize", ()=>{
@@ -214,23 +224,6 @@ if("webkitSpeechRecognition" in window){
   recognition.lang="de-DE";
   recognition.continuous=false;
   recognition.interimResults=false;
-
-  recognition.onresult = (
-    window.addEventListener("resize", ()=>{
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-const micBtn = document.getElementById("micBtn");
-const micNotice = document.getElementById("micNotice");
-let recognizing = false, recognition;
-
-if("webkitSpeechRecognition" in window){
-  recognition = new webkitSpeechRecognition();
-  recognition.lang = "de-DE";
-  recognition.continuous = false;
-  recognition.interimResults = false;
 
   recognition.onresult = (event) => {
     lastTranscript = event.results[0][0].transcript;
@@ -256,21 +249,26 @@ if("webkitSpeechRecognition" in window){
       })
       .then(resp => resp.json())
       .then(data => {
-        // Antwortbeginn → Rückdrehung starten
+        // Kopf leicht gedreht zu Beginn der Antwort
+        targetRotY = baseRotY - 0.15;
+
         rising = true;
         riseStartTime = performance.now();
         speak(data.answer);
 
         setTimeout(()=>{
+          rising = true;
+          riseStartTime = performance.now();
           hmStarted = false;
           lastTranscript = "";
+          targetRotY = baseRotY; // frontal
         }, 500); 
       })
       .catch(e => console.error("Fehler bei /ask:", e));
     }
   };
 }else{
-  micNotice.textContent = "🎤 Sprachsteuerung wird im Browser nicht unterstützt. Bitte Chrome/Edge nutzen.";
+  micNotice.textContent="🎤 Sprachsteuerung wird im Browser nicht unterstützt. Bitte Chrome/Edge nutzen.";
 }
 
 let maleVoice = null;
@@ -278,7 +276,7 @@ function loadVoices(){
   const voices = speechSynthesis.getVoices();
   maleVoice = voices.find(v=>/male|mann|stefan|markus/i.test(v.name)) ||
               voices.find(v=>v.lang.startsWith("de")) ||
-              voices[0] || null;
+              voices[0]||null;
 }
 speechSynthesis.onvoiceschanged = loadVoices;
 loadVoices();
@@ -286,13 +284,13 @@ loadVoices();
 function speak(text, slow=false){
   if(!text || !maleVoice) return;
   const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = "de-DE";
+  utter.lang="de-DE";
   utter.rate = slow ? 0.4 : 0.95;
   utter.pitch = 0.6;
   utter.voice = maleVoice;
   utter.volume = 0.6;
-  utter.onstart = ()=>{ talking = true; };
-  utter.onend = ()=>{ talking = false; };
+  utter.onstart=()=>{ talking=true; };
+  utter.onend=()=>{ talking=false; };
   speechSynthesis.speak(utter);
 }
 
