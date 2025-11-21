@@ -151,7 +151,6 @@ loader.load("./avatar.glb", gltf=>{
   loadingText.textContent="Fehler beim Laden des Avatars.";
 });
 
-<script>
 function animate() {
   requestAnimationFrame(animate);
   if(!model) return;
@@ -196,57 +195,36 @@ function animate() {
   // Talking (Antwort läuft)
   // ---------------------------------------
   if(talking) {
+
+    // Natürliche Atmung
     const breathe = Math.sin(tNow*0.0015)*0.015 + Math.sin(tNow*0.0007)*0.008;
     model.position.y = baseY + breathe;
 
+    // Subtile Kopfbewegungen
     const swayY = Math.sin(tNow*0.0012)*0.02 + Math.sin(tNow*0.0023)*0.01;
     const swayX = Math.sin(tNow*0.0017)*0.015 + Math.sin(tNow*0.0021)*0.008;
     const swayZ = Math.sin(tNow*0.0015)*0.004;
 
-    // Kopf GANZ LANGSAM zurück auf frontal (ohne Sprung nach rechts!)
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY, 0.04);
+    // Kopf GANZ LANGSAM zurück auf frontal
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.04);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.04);
     model.rotation.z = swayZ;
 
   } else if(!hmNeigen) {
+
     // ---------------------------------------
     // Normale Idle-Position (mit Atmung)
     // ---------------------------------------
     const breathe = Math.sin(tNow*0.0015)*0.015 + Math.sin(tNow*0.0007)*0.008;
 
     model.position.y = THREE.MathUtils.lerp(model.position.y, baseY + breathe, 0.02);
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY, 0.02);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
     model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
   }
 
   renderer.render(scene, camera);
 }
-
-// --- Antwortbeginn: Rückdrehung starten ---
-function handleAnswer(data) {
-  rising = true;
-  riseStartTime = performance.now();
-  speak(data.answer);
-
-  setTimeout(()=>{
-    hmStarted = false;
-    lastTranscript = "";
-  }, 500); 
-}
-
-// --- Anpassung im Fetch-Callback ---
-fetch("/ask", {
-  method:"POST",
-  headers:{"Content-Type":"application/json"},
-  body: JSON.stringify({text:lastTranscript})
-})
-.then(resp => resp.json())
-.then(data => {
-  handleAnswer(data);
-})
-.catch(e => console.error("Fehler bei /ask:", e));
-</script>
 
 window.addEventListener("resize", ()=>{
   camera.aspect=window.innerWidth/window.innerHeight;
