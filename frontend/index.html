@@ -244,7 +244,7 @@ if("webkitSpeechRecognition" in window){
       .then(resp => resp.json())
       .then(data => {
         // Ziel-Kopfposition für Antwort
-        targetRotY = baseRotY - 0.15;
+        targetRotY = baseRotY - 0.07;
 
         rising = true;
         riseStartTime = performance.now();
