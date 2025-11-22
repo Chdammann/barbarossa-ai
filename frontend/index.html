@@ -95,7 +95,7 @@ footer a:hover { text-decoration: underline; }
 <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-let model, talking=false, greeted=false;
+let model, talking=false;
 let lastTranscript = "";
 let hmNeigen = false;
 let hmStartTime = 0;
@@ -106,13 +106,14 @@ let hmStartRotY = 0;
 let rising = false;
 let riseStartTime = 0;
 const riseDuration = 1200;
-let hmStarted = false;
 
-const baseRotY = 0.1;  // Ausgang leicht nach rechts geneigt
-const baseRotX = 0.25;
+let greeted = false;
+
+let baseRotY = 0.15;  // Ausgang leicht nach rechts
+let baseRotX = 0;
 let targetRotY = baseRotY;
 let targetRotX = baseRotX;
-const baseY = 0;
+let baseY = 0;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -122,12 +123,12 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setClearColor(0x000000);
 
-// Korrektes Licht für Goldmaterial
-const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-dirLight.position.set(1,1,2);
-scene.add(dirLight);
-scene.add(new THREE.AmbientLight(0xffffff,0.6));
-const frontLight = new THREE.PointLight(0xffffff,0.6);
+// Licht unverändert, goldenes Material korrekt beleuchtet
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1.8);
+directionalLight.position.set(1,1,2);
+scene.add(directionalLight);
+scene.add(new THREE.AmbientLight(0xffffff,0.8));
+const frontLight = new THREE.PointLight(0xffffff,0.8);
 frontLight.position.set(0,0.5,2);
 scene.add(frontLight);
 
@@ -135,11 +136,11 @@ const loader = new THREE.GLTFLoader();
 const loadingText = document.getElementById("loading");
 
 loader.load("./avatar.glb", gltf=>{
-  model=gltf.scene;
+  model = gltf.scene;
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x,size.y,size.z);
-  let scaleFactor = (1.5 / maxDim) * 0.8; 
+  let scaleFactor = (1.5 / maxDim) * 0.8;
   model.scale.set(scaleFactor, scaleFactor, scaleFactor);
   const center = box.getCenter(new THREE.Vector3());
   model.position.sub(center);
@@ -155,51 +156,38 @@ loader.load("./avatar.glb", gltf=>{
 
 function animate(){
   requestAnimationFrame(animate);
-  if(model){
-    const tNow = Date.now();
+  if(!model) return;
 
-    // Aufrichten während Antwort
-    if(rising){
-      const t = (performance.now() - riseStartTime) / riseDuration;
-      const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
-      targetRotY = baseRotY * (1 - easeT);
-      targetRotX = baseRotX * (1 - easeT);
-      if(t >= 1) rising = false;
-    }
+  const t = Date.now();
 
-    // "Hmmmm...Moment" Neigen nach links
-    if(hmNeigen){
-      const t = (performance.now() - hmStartTime) / hmDuration;
-      if(t>=1){
-        hmNeigen=false;
-        model.rotation.x = hmStartRotX + 0.25;
-        model.rotation.y = hmStartRotY - 0.1; 
-      } else {
-        model.rotation.x = hmStartRotX + 0.25 * t;
-        model.rotation.y = hmStartRotY - 0.1 * t;
-      }
-    }
-
-    // Talking + natürliche Atmung
-    if(talking){
-      const breathe = Math.sin(tNow*0.0015)*0.008 + Math.sin(tNow*0.0007)*0.004;
-      model.position.y = baseY + breathe;
-
-      const swayY = Math.sin(tNow*0.0012)*0.02 + Math.sin(tNow*0.0023)*0.01;
-      const swayX = Math.sin(tNow*0.0017)*0.015 + Math.sin(tNow*0.0021)*0.008;
-      const swayZ = Math.sin(tNow*0.0015)*0.004;
-
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY, 0.08);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
-      model.rotation.z = swayZ;
-    } else if(!hmNeigen){
-      // Rückkehr auf Ausgangsposition
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY, 0.02);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.02);
-      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
-      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.02);
+  // Hm-Neigephase
+  if(hmNeigen){
+    const elapsed = (t - hmStartTime)/hmDuration;
+    if(elapsed >= 1){
+      hmNeigen = false;
+      model.rotation.x = hmStartRotX + 0.1; // leicht nach links
+      model.rotation.y = hmStartRotY - 0.1;
+    } else {
+      model.rotation.x = hmStartRotX + 0.1*elapsed;
+      model.rotation.y = hmStartRotY - 0.1*elapsed;
     }
   }
+
+  // Talking / Aufrichten
+  if(talking){
+    const breathe = Math.sin(t*0.0015)*0.008 + Math.sin(t*0.0007)*0.004;
+    model.position.y = baseY + breathe;
+
+    // Langsam auf frontal während Antwort
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, 0, 0.02);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.02);
+  } else if(!hmNeigen){
+    // Ausgangsposition leicht rechts geneigt
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY, 0.02);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.02);
+    model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.02);
+  }
+
   renderer.render(scene,camera);
 }
 
@@ -228,13 +216,12 @@ if("webkitSpeechRecognition" in window){
     micBtn.style.background = "#222";
     recognizing = false;
 
-    if(lastTranscript && !hmStarted){
-      hmStarted = true;
+    if(lastTranscript){
       hmNeigen = true;
       hmStartTime = performance.now();
       hmStartRotX = model.rotation.x;
       hmStartRotY = model.rotation.y;
-      speak("Hmmmmmm… einen Moment", true); 
+      speak("Hmmmm… einen Moment", true);
 
       fetch("/ask", {
         method:"POST",
@@ -243,17 +230,20 @@ if("webkitSpeechRecognition" in window){
       })
       .then(resp => resp.json())
       .then(data => {
-        rising = true;
-        riseStartTime = performance.now();
+        // Antwortphase starten
+        talking = true;
         speak(data.answer);
 
-        setTimeout(()=>{
-          // Rückkehr auf Ausgangsposition leicht nach rechts geneigt
+        // Nach Ende Antwort: Ausgangsposition und greeted zurücksetzen
+        const resetAfterAnswer = () => {
+          talking = false;
+          hmNeigen = false;
           targetRotY = baseRotY;
           targetRotX = baseRotX;
-          hmStarted=false;
-          lastTranscript="";
-        }, 500);
+          greeted = false;
+          lastTranscript = "";
+        };
+        setTimeout(resetAfterAnswer, data.answer.length*80 + 1000); // ungefähr Dauer
       })
       .catch(e => console.error("Fehler bei /ask:", e));
     }
@@ -280,8 +270,8 @@ function speak(text, slow=false){
   utter.pitch = 0.6;
   utter.voice = maleVoice;
   utter.volume = 0.6;
-  utter.onstart=()=>{ talking=true; };
-  utter.onend=()=>{ talking=false; };
+  utter.onstart = ()=>{ talking=true; };
+  utter.onend = ()=>{ talking=false; };
   speechSynthesis.speak(utter);
 }
 
@@ -292,6 +282,7 @@ micBtn.onclick = () => {
     greeted = true;
     rising = true;
     riseStartTime = performance.now();
+    // Begrüßung auslösen
     speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
     return;
   }
@@ -300,11 +291,10 @@ micBtn.onclick = () => {
     recognition.start();
     micBtn.style.background = "#555";
     recognizing = true;
-    hmStarted=false;
   } else {
     recognition.stop();
     micBtn.style.background = "#222";
-    recognizing=false;
+    recognizing = false;
   }
 };
 </script>
