@@ -179,7 +179,7 @@ function animate(){
 
     // Normal Talking Animation
     if(talking && !hmNeigen){
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(Date.now()*0.0015)*0.03 - Math.PI/2, 0.08);
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(Date.now()*0.0015)*0.03 - Math.PI/2, 0.02);
       model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(Date.now()*0.0019)*0.015, 0.08);
       model.rotation.z = Math.sin(Date.now()*0.0012)*0.015;
       model.position.y = baseY + Math.sin(Date.now()*0.01)*0.002;
