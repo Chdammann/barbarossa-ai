@@ -82,13 +82,11 @@ footer a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
-
 <h1>Frag Friedrich</h1>
 <div id="loading">Avatar wird geladen…</div>
 <canvas id="avatarCanvas"></canvas>
 <button id="micBtn">🎤</button>
 <div id="micNotice"></div>
-
 <footer>
 © 2025 <a href="https://christoph-dammann.de" target="_blank">Dr. Christoph Dammann</a>
 </footer>
@@ -108,10 +106,9 @@ let hmStartRotY = 0;
 let rising = false;
 let riseStartTime = 0;
 const riseDuration = 1200;
-let hmStarted = false;
 
-let baseRotY = -0.35;
-let baseRotX = 0.25;
+let baseRotY = 0.2;  // leicht nach rechts geneigt
+let baseRotX = 0.1;  // leichte Vorne-Neigung
 let targetRotY = baseRotY;
 let targetRotX = baseRotX;
 let baseY = 0;
@@ -124,13 +121,15 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setClearColor(0x000000);
 
-const light = new THREE.DirectionalLight(0xffffff,2);
-light.position.set(1,1,2);
-scene.add(light);
+// Licht korrekt für goldenes Material
+const dirLight = new THREE.DirectionalLight(0xffffff,1.5);
+dirLight.position.set(1,1,2);
+scene.add(dirLight);
 
-scene.add(new THREE.AmbientLight(0xffffff,0.8));
+const ambLight = new THREE.AmbientLight(0xffffff,0.6);
+scene.add(ambLight);
 
-const frontLight = new THREE.PointLight(0xffffff,0.8);
+const frontLight = new THREE.PointLight(0xffffff,0.5);
 frontLight.position.set(0,0.5,2);
 scene.add(frontLight);
 
@@ -139,19 +138,15 @@ const loadingText = document.getElementById("loading");
 
 loader.load("./avatar.glb", gltf=>{
   model=gltf.scene;
-
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x,size.y,size.z);
-  const scaleFactor = (1.5 / maxDim) * 0.8;
+  let scaleFactor = (1.5 / maxDim) * 0.8; 
   model.scale.set(scaleFactor, scaleFactor, scaleFactor);
-
   const center = box.getCenter(new THREE.Vector3());
   model.position.sub(center);
-
-  model.rotation.y = baseRotY - Math.PI/2;
+  model.rotation.y = baseRotY;
   model.rotation.x = baseRotX;
-
   scene.add(model);
   loadingText.style.display="none";
   animate();
@@ -162,59 +157,36 @@ loader.load("./avatar.glb", gltf=>{
 
 function animate(){
   requestAnimationFrame(animate);
-
   if(model){
-
-    // Aufrichten (Begrüßung)
+    // Rising: Aufrichten zur Frontal-Position
     if(rising){
-      const t = (performance.now() - riseStartTime) / riseDuration;
-      const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
-
-      targetRotY = baseRotY * (1 - easeT);
-      targetRotX = baseRotX * (1 - easeT);
-
-      if(t >= 1) rising = false;
+      const t = (performance.now() - riseStartTime)/riseDuration;
+      const easeT = t<0?0:(t>1?1:(-Math.cos(Math.PI*t)/2+0.5));
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY, 0.08);
+      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.08);
+      if(t>=1) rising=false;
     }
 
-    // Hm-Neigen
+    // Hmm-Neigen: leichte Linksdrehung während Wartephase
     if(hmNeigen){
-      const t = (performance.now() - hmStartTime) / hmDuration;
-      if(t >= 1){
-        hmNeigen = false;
-        model.rotation.x = hmStartRotX + 0.25;
-        model.rotation.y = hmStartRotY + 0.25;
+      const t = (performance.now()-hmStartTime)/hmDuration;
+      if(t>=1){
+        hmNeigen=false;
+        model.rotation.x = hmStartRotX + 0.05;
+        model.rotation.y = hmStartRotY - 0.1;
       } else {
-        model.rotation.x = hmStartRotX + 0.25 * t;
-        model.rotation.y = hmStartRotY + 0.25 * t;
+        model.rotation.x = hmStartRotX + 0.05*t;
+        model.rotation.y = hmStartRotY - 0.1*t;
       }
     }
 
-    // Sprachbewegungen
-    if(talking && !hmNeigen){
-      const t = Date.now();
-      const breathe = Math.sin(t*0.0015)*0.008 + Math.sin(t*0.0007)*0.004;
+    // Talking Animation + Atmung
+    const tTime = Date.now();
+    const breathe = Math.sin(tTime*0.0015)*0.008 + Math.sin(tTime*0.0007)*0.004;
+    model.position.y = baseY + breathe;
 
-      model.position.y = baseY + breathe;
-
-      const swayY = Math.sin(t*0.0012)*0.02 + Math.sin(t*0.0023)*0.01;
-      const swayX = Math.sin(t*0.0017)*0.015 + Math.sin(t*0.0021)*0.008;
-      const swayZ = Math.sin(t*0.0015)*0.004;
-
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + swayY - Math.PI/2, 0.08);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + swayX, 0.08);
-      model.rotation.z = swayZ;
-    }
-
-    // Ruheposition
-    else if(!hmNeigen){
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
-      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
-      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.02);
-    }
+    renderer.render(scene,camera);
   }
-
-  renderer.render(scene,camera);
 }
 
 window.addEventListener("resize", ()=>{
@@ -222,11 +194,6 @@ window.addEventListener("resize", ()=>{
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth,window.innerHeight);
 });
-
-
-// ============================
-//        MICRO + SPRACHE
-// ============================
 
 const micBtn = document.getElementById("micBtn");
 const micNotice = document.getElementById("micNotice");
@@ -240,19 +207,18 @@ if("webkitSpeechRecognition" in window){
 
   recognition.onresult = (event) => {
     lastTranscript = event.results[0][0].transcript;
+    console.log("🎙️ Gesprochen:", lastTranscript);
   };
 
   recognition.onend = () => {
     micBtn.style.background = "#222";
     recognizing = false;
 
-    if(lastTranscript && !hmStarted){
-      hmStarted = true;
+    if(lastTranscript){
       hmNeigen = true;
       hmStartTime = performance.now();
       hmStartRotX = model.rotation.x;
       hmStartRotY = model.rotation.y;
-
       speak("Hmmmmmm… einen Moment", true);
 
       fetch("/ask", {
@@ -260,47 +226,29 @@ if("webkitSpeechRecognition" in window){
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({text:lastTranscript})
       })
-      .then(resp => resp.json())
-      .then(data => {
-
+      .then(resp=>resp.json())
+      .then(data=>{
+        // Während Antwort langsam auf Frontal
+        targetRotX = 0;
+        targetRotY = 0;
+        rising = true;
+        riseStartTime = performance.now();
         speak(data.answer);
-
-        // Nach Ende der Antwort -> komplette Rückkehr in die Ausgangshaltung
-        const wait = setInterval(()=>{
-          if(!talking){
-            clearInterval(wait);
-
-            targetRotX = baseRotX;
-            targetRotY = baseRotY;
-
-            greeted = false;   // ← führt beim nächsten Klick wieder Begrüßung aus
-            hmStarted = false;
-            lastTranscript = "";
-          }
-        }, 100);
       })
-      .catch(e => console.error("Fehler bei /ask:", e));
+      .catch(e=>console.error("Fehler bei /ask:", e));
     }
   };
-
 }else{
   micNotice.textContent="🎤 Sprachsteuerung wird im Browser nicht unterstützt. Bitte Chrome/Edge nutzen.";
 }
 
-
-// ============================
-//            TTS
-// ============================
-
 let maleVoice = null;
-
 function loadVoices(){
   const voices = speechSynthesis.getVoices();
   maleVoice = voices.find(v=>/male|mann|stefan|markus/i.test(v.name)) ||
               voices.find(v=>v.lang.startsWith("de")) ||
-              voices[0] || null;
+              voices[0]||null;
 }
-
 speechSynthesis.onvoiceschanged = loadVoices;
 loadVoices();
 
@@ -308,41 +256,51 @@ function speak(text, slow=false){
   if(!text || !maleVoice) return;
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang="de-DE";
-  utter.rate = slow ? 0.4 : 0.95;
+  utter.rate = slow?0.4:0.95;
   utter.pitch = 0.6;
   utter.voice = maleVoice;
   utter.volume = 0.6;
-  utter.onstart = ()=>{ talking=true; };
-  utter.onend   = ()=>{ talking=false; };
+  utter.onstart=()=>{
+    talking=true;
+    // Während Antwort langsam auf Frontal
+    targetRotX = 0;
+    targetRotY = 0;
+    rising=true;
+    riseStartTime = performance.now();
+  };
+  utter.onend=()=>{
+    talking=false;
+    // Nach Antwort zurück zur Ausgangs-Idle-Position
+    targetRotX = baseRotX;
+    targetRotY = baseRotY;
+    rising=true;
+    riseStartTime = performance.now();
+    lastTranscript="";
+  };
   speechSynthesis.speak(utter);
 }
-
-
-// ============================
-//         MIC BUTTON
-// ============================
 
 micBtn.onclick = () => {
   if(!recognition) return;
 
-  // Erneute Begrüßung, da greeted nach Antwort zurückgesetzt wird
   if(!greeted){
-    greeted = true;
-    rising = true;
-    riseStartTime = performance.now();
+    greeted=true;
+    targetRotX=0;
+    targetRotY=0;
+    rising=true;
+    riseStartTime=performance.now();
     speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
     return;
   }
 
   if(!recognizing){
     recognition.start();
-    micBtn.style.background = "#555";
-    recognizing = true;
-    hmStarted = false;
+    micBtn.style.background="#555";
+    recognizing=true;
   } else {
     recognition.stop();
-    micBtn.style.background = "#222";
-    recognizing = false;
+    micBtn.style.background="#222";
+    recognizing=false;
   }
 };
 </script>
