@@ -177,19 +177,28 @@ function animate(){
       }
     }
 
-    // Normal Talking Animation
-    if(talking && !hmNeigen){
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY + Math.sin(Date.now()*0.0015)*0.03 - Math.PI/2, 0.02);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX + Math.sin(Date.now()*0.0019)*0.015, 0.08);
-      model.rotation.z = Math.sin(Date.now()*0.0012)*0.015;
-      model.position.y = baseY + Math.sin(Date.now()*0.01)*0.002;
-    } else if(!hmNeigen){
-      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
-      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
-      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
-      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.02);
-    }
-  }
+    // Normal Talking Animation – langsam zurück auf frontal drehen
+if (talking && !hmNeigen) {
+  const t = Date.now();
+  
+  // Sanfte Atmung
+  const breathe = Math.sin(t * 0.0015) * 0.01;
+  model.position.y = baseY + breathe;
+
+  // Zwischenposition: langsam zur Frontalansicht drehen
+  const smoothRotY = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI / 2, 0.015);  
+  const swayY = Math.sin(t * 0.0013) * 0.015; // kleine Lebendigkeit
+
+  model.rotation.y = smoothRotY + swayY;
+  model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.015);
+  model.rotation.z = Math.sin(t * 0.001) * 0.01;
+} else if (!hmNeigen) {
+  // Ruhezustand
+  model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI / 2, 0.02);
+  model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
+  model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
+  model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.02);
+}
   renderer.render(scene,camera);
 }
 
