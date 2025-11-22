@@ -124,8 +124,12 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setClearColor(0x000000);
 
-scene.add(new THREE.DirectionalLight(0xffffff,2).position.set(1,1,2));
+const light = new THREE.DirectionalLight(0xffffff,2);
+light.position.set(1,1,2);
+scene.add(light);
+
 scene.add(new THREE.AmbientLight(0xffffff,0.8));
+
 const frontLight = new THREE.PointLight(0xffffff,0.8);
 frontLight.position.set(0,0.5,2);
 scene.add(frontLight);
