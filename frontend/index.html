@@ -75,18 +75,16 @@
 /* -----------------------------
    STATE MACHINE
 ----------------------------- */
-let model, STATE = "idle";   // idle → greet → listen → hmmm → answer → idle
+let model, STATE = "idle";
 let lastTranscript = "";
 let talking = false, greeted = false;
 
 let hmNeigen = false, hmStartTime = 0;
 let rising = false, riseStartTime = 0;
-let hmStarted = false;
 
 const hmDuration = 2000;
 const riseDuration = 1200;
 
-/* Basis – leicht nach AVATAR-RECHTS geneigt */
 let baseRotY = -0.35;
 let baseRotX = 0.25;
 let baseY = 0;
@@ -111,7 +109,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setClearColor(0x000000);
 
-/* Licht – KORREKT, kein position.set in scene.add! */
+/* LICHT – KORREKT */
 const dirLight = new THREE.DirectionalLight(0xffffff, 2);
 dirLight.position.set(1, 1, 2);
 scene.add(dirLight);
@@ -136,10 +134,7 @@ loader.load("./avatar.glb", gltf => {
   const center = box.getCenter(new THREE.Vector3());
   model.position.sub(center);
 
-  // Basis-Y für Atmung merken
   baseY = model.position.y;
-
-  /* → Idle Pose (leicht nach RECHTS) */
   model.rotation.y = baseRotY - Math.PI / 2;
   model.rotation.x = baseRotX;
 
@@ -157,15 +152,12 @@ function animate() {
 
   const now = performance.now();
 
-  // 1) Begrüßung ODER Antwort: langsam frontal
   if (rising) {
     const t = (now - riseStartTime) / riseDuration;
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, -Math.PI / 2, 0.03);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
     if (t >= 1) rising = false;
   }
-
-  // 2) „Hmmm… einen Moment“ – nach AVATAR-LINKS neigen
   else if (hmNeigen) {
     const t = Math.min(1, (now - hmStartTime) / hmDuration);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX + 0.3, t);
@@ -174,19 +166,13 @@ function animate() {
       baseRotY - 0.3 - Math.PI / 2,
       t
     );
-    if (t >= 1) {
-      hmNeigen = false;
-    }
+    if (t >= 1) hmNeigen = false;
   }
-
-  // 3) WÄHREND der Antwort → langsam zurück nach frontal + Atmung
   else if (talking) {
     model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, -Math.PI / 2, 0.02);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.02);
   }
-
-  // 4) Idle → leicht nach AVATAR-RECHTS geneigt + Atmung
   else {
     model.rotation.y = THREE.MathUtils.lerp(
       model.rotation.y,
@@ -218,10 +204,8 @@ if ("webkitSpeechRecognition" in window) {
       STATE = "hmmm";
       hmNeigen = true;
       hmStartTime = performance.now();
-
       speak("Hmmmm... einen Moment", true);
 
-      // 👉 Frage an dein Backend
       fetch("/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -230,22 +214,17 @@ if ("webkitSpeechRecognition" in window) {
         .then(r => r.json())
         .then(data => {
           STATE = "answer";
-          hmNeigen = false;
-          rising = true;          // frontal drehen
+          rising = true;
           riseStartTime = performance.now();
           speak(data.answer);
-
           setTimeout(() => {
-            model.rotation.y = baseRotY - Math.PI / 2;   // ← Idle-Pose
-            greeted = false;        // → NÄCHSTER Mikrotipp = Begrüßung
+            greeted = false;
             STATE = "idle";
           }, 500);
         })
-        .catch(err => {
-          console.error("Fehler bei /ask:", err);
+        .catch(() => {
           STATE = "idle";
           hmNeigen = false;
-          rising = false;
         });
     } else {
       STATE = "idle";
@@ -257,19 +236,16 @@ if ("webkitSpeechRecognition" in window) {
    BUTTON
 ----------------------------- */
 document.getElementById("micBtn").onclick = () => {
-  // Erste Benutzung → Begrüßung
   if (!greeted) {
     greeted = true;
     STATE = "greet";
     rising = true;
     riseStartTime = performance.now();
-    speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausendjährigem Schlaf im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Was ist Euer Begehr?", false);
+    speak("Seid gegrüßt, mein Freund...", false);
     return;
   }
-
-  // Danach → Spracherkennung
   if (!recognition) {
-    alert("Spracherkennung wird von diesem Browser nicht unterstützt.");
+    alert("Spracherkennung wird nicht unterstützt.");
     return;
   }
   lastTranscript = "";
@@ -278,21 +254,36 @@ document.getElementById("micBtn").onclick = () => {
 };
 
 /* -----------------------------
-   SPEAK FUNCTION
+   MÄNNLICHE STIMME SUCHEN
 ----------------------------- */
 let maleVoice = null;
+
+function setMaleVoice() {
+  const voices = speechSynthesis.getVoices();
+  maleVoice = voices.find(v =>
+    v.lang.startsWith("de") &&
+    /(mann|male|masculin|de-DE)/i.test(v.name)
+  );
+}
+speechSynthesis.onvoiceschanged = setMaleVoice;
+
+/* -----------------------------
+   SPEAK FUNCTION
+----------------------------- */
 function speak(text, slow = false) {
-  if (!text) return;
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
   u.rate = slow ? 0.5 : 0.95;
-  u.onstart = () => { talking = true; };
-  u.onend = () => { talking = false; };
+
+  if (maleVoice) u.voice = maleVoice;   // <-- HIER WIRD STIMME GESETZT
+
+  u.onstart = () => talking = true;
+  u.onend = () => talking = false;
   speechSynthesis.speak(u);
 }
 
 /* -----------------------------
-   RESIZE HANDLING
+   RESIZE
 ----------------------------- */
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
