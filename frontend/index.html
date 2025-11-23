@@ -51,7 +51,7 @@ h1 {
   left: 50%;
   transform: translateX(-50%);
   width: 80px;
-  height: 80%;
+  height: 80px;
   border-radius: 50%;
   background: #222;
   color: white;
@@ -112,7 +112,11 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x000000);
 scene.add(new THREE.DirectionalLight(0xffffff,2).position.set(1,1,2));
 scene.add(new THREE.AmbientLight(0xffffff,0.9));
-const frontLight = new THREE.PointLight(0xffffff,1);
+const light = new THREE.DirectionalLight(0xffffff,2);
+light.position.set(1,1,2);
+scene.add(light);
+scene.add(new THREE.AmbientLight(0xffffff,0.8));
+const frontLight = new THREE.PointLight(0xffffff,0.8);
 frontLight.position.set(0,0.5,2);
 scene.add(frontLight);
 
