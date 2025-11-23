@@ -82,7 +82,7 @@ let talking = false, greeted = false;
 let hmNeigen = false, hmStartTime = 0;
 let rising = false, riseStartTime = 0;
 
-const hmDuration = 2000;
+const hmDuration = 5000;
 const riseDuration = 1200;
 
 let baseRotY = -0.35;
@@ -206,7 +206,7 @@ if ("webkitSpeechRecognition" in window) {
       STATE = "hmmm";
       hmNeigen = true;
       hmStartTime = performance.now();
-      speak("Hmmmm... einen Moment", true);
+      speak("Hmmmm... einen Moment", true, 0.6);
 
       fetch("/ask", {
         method: "POST",
