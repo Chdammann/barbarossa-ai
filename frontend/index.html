@@ -151,34 +151,36 @@ function animate() {
   if (!model) return;
 
   const now = performance.now();
+  const frontalY = -Math.PI / 2; // in deinem Setup ist das "frontal"
 
   // === 3. BEIM ANTWORTEN → ZURÜCK AUF FRONTAL ===
   if (rising) {
     const t = (now - riseStartTime) / riseDuration;
-    // Ziel: FRONTAL → X=0 Y=0
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, 0, 0.03);
+    // Ziel: frontal schauen
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.03);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
     if (t >= 1) rising = false;
   }
 
-  // === 2. "Hmmmm..." → LANGSAM NACH LINKS NEIGEN (UND BLEIBEN) ===
+  // === 2. "Hmmmm..." → LANGSAM NACH LINKS NEIGEN (UND DORT BLEIBEN) ===
   else if (hmNeigen) {
     const t = Math.min(1, (now - hmStartTime) / hmDuration);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, t);
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY + 0.25, t);
+    // leicht nach links relativ zur Frontalposition
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY + 0.25, t);
     if (t >= 1) hmNeigen = false;
   }
 
-  // === (OPTIONAL) TALKING-ANIMATION BLEIBT — leichtes Atmen ===
+  // === TALKING → leichtes Atmen, frontal ===
   else if (talking) {
     model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, 0, 0.02);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.02);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.02);
   }
 
-  // === 1. IDLE → FRONTAL BLEIBEN ===
+  // === IDLE → FRONTAL BLEIBEN MIT ATEMBEWEGUNG ===
   else {
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, 0, 0.02);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.02);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.02);
     model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
   }
