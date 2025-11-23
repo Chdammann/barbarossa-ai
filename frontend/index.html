@@ -111,7 +111,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setClearColor(0x000000);
 
-/* Licht – GOLD bleibt GOLD! */
+/* Licht – KORREKT, kein position.set in scene.add! */
 const dirLight = new THREE.DirectionalLight(0xffffff, 2);
 dirLight.position.set(1, 1, 2);
 scene.add(dirLight);
@@ -186,7 +186,7 @@ function animate() {
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.02);
   }
 
-  // 4) Idle → leicht nach AVATAR-RECHTS geneigt
+  // 4) Idle → leicht nach AVATAR-RECHTS geneigt + Atmung
   else {
     model.rotation.y = THREE.MathUtils.lerp(
       model.rotation.y,
@@ -292,7 +292,7 @@ function speak(text, slow = false) {
 }
 
 /* -----------------------------
-   RESIZE HANDLING (optional, aber sinnvoll)
+   RESIZE HANDLING
 ----------------------------- */
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
