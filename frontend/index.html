@@ -127,43 +127,75 @@ loader.load("./avatar.glb", gltf=>{
 ------------------------------ */
 function animate(){
   requestAnimationFrame(animate);
-  if(!model) return;
+  if(model){
+    // Aufrichten nach Begrüßung / Antwort (wie bisher)
+    if(rising){
+      const t = (performance.now() - riseStartTime) / riseDuration;
+      const clamped = Math.max(0, Math.min(1, t));
+      const easeT = -Math.cos(Math.PI * clamped)/2 + 0.5;  // weich ein- und ausblenden
 
-  const now = performance.now();
+      // von geneigt (baseRotX/Y) zu frontal (0)
+      targetRotY = baseRotY * (1 - easeT);
+      targetRotX = baseRotX * (1 - easeT);
 
-  // BEGRÜSSUNG → aufrichten frontal
-  if(STATE === "greet" && rising){
-    const t = (now - riseStartTime) / riseDuration;
-    const ease = Math.min(Math.max(t,0),1);
-    targetRotY = THREE.MathUtils.lerp(baseRotY, 0, ease); // frontal!
-    targetRotX = THREE.MathUtils.lerp(baseRotX, 0, ease);
-    if(t>=1) rising=false;
-  }
+      if(clamped >= 1) rising = false;
+    }
 
-  // Hmmm Phase
-  if(STATE === "hmmm"){
-    const t = (now - hmStartTime) / hmDuration;
-    if(t >= 1){
-      hmNeigen=false;
-      model.rotation.y = baseRotY + 0.25 - Math.PI/2; // avatar-links
-    } else {
-      model.rotation.y = THREE.MathUtils.lerp(baseRotY - Math.PI/2, baseRotY + 0.25 - Math.PI/2, t);
+    // "Hmmm…"-Phase: langsam nach vorne und Avatar-LEFT neigen
+    if(hmNeigen){
+      const t = (performance.now() - hmStartTime) / hmDuration;
+      const clamped = Math.max(0, Math.min(1, t));
+      // smoothstep für weiche Bewegung
+      const easeT = clamped * clamped * (3 - 2 * clamped);
+
+      const maxDown = 0.3;   // Neigung nach vorne
+      const maxSide = -0.3;  // NEGATIV = andere Richtung als vorher (Avatar-links)
+
+      model.rotation.x = hmStartRotX + maxDown * easeT;
+      model.rotation.y = hmStartRotY + maxSide * easeT;
+
+      if(clamped >= 1){
+        // Zielpose erreicht, dort stehen bleiben, bis Antwort kommt
+        hmNeigen = false;
+      }
+    }
+
+    // Normal Talking Animation
+    if(talking && !hmNeigen){
+      // während der Antwort langsam Richtung targetRotY (frontal) drehen,
+      // mit leichter lebendiger Bewegung
+      model.rotation.y = THREE.MathUtils.lerp(
+        model.rotation.y,
+        targetRotY + Math.sin(Date.now()*0.0015)*0.03 - Math.PI/2,
+        0.08
+      );
+      model.rotation.x = THREE.MathUtils.lerp(
+        model.rotation.x,
+        targetRotX + Math.sin(Date.now()*0.0019)*0.015,
+        0.08
+      );
+      model.rotation.z = Math.sin(Date.now()*0.0012)*0.015;
+      model.position.y = baseY + Math.sin(Date.now()*0.01)*0.002;
+    } 
+    // Idle / Ruhig nur dann, wenn wir NICHT in Hmmm sind UND NICHT mitten im Zyklus
+    else if(!hmNeigen && !hmStarted){
+      model.rotation.y = THREE.MathUtils.lerp(
+        model.rotation.y,
+        targetRotY - Math.PI/2,
+        0.02
+      );
+      model.rotation.x = THREE.MathUtils.lerp(
+        model.rotation.x,
+        targetRotX,
+        0.02
+      );
+      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
+      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.02);
     }
   }
-
-  // Talking / Antwort – langsam frontal drehen
-  if(STATE === "answer"){
-    const t2 = (now - riseStartTime) / riseDuration;
-    const ease2 = Math.min(Math.max(t2,0),1);
-    targetRotY = THREE.MathUtils.lerp(baseRotY, 0, ease2); // frontal
-  }
-
-  // Anwenden
-  model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.05);
-  model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.05);
-
   renderer.render(scene,camera);
 }
+
 
 /* ------------------------------
     SPEECH – recognition
