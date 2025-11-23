@@ -128,46 +128,34 @@ loader.load("./avatar.glb", gltf=>{
 function animate(){
   requestAnimationFrame(animate);
   if(model){
-    // Aufrichten nach Begrüßung / Antwort (wie bisher)
+    // Aufrichten nach Begrüßung
     if(rising){
       const t = (performance.now() - riseStartTime) / riseDuration;
-      const clamped = Math.max(0, Math.min(1, t));
-      const easeT = -Math.cos(Math.PI * clamped)/2 + 0.5;  // weich ein- und ausblenden
-
-      // von geneigt (baseRotX/Y) zu frontal (0)
+      const easeT = t < 0 ? 0 : (t > 1 ? 1 : (-Math.cos(Math.PI * t)/2 + 0.5));
       targetRotY = baseRotY * (1 - easeT);
       targetRotX = baseRotX * (1 - easeT);
-
-      if(clamped >= 1) rising = false;
+      if(t >= 1) rising = false;
     }
 
-    // "Hmmm…"-Phase: langsam nach vorne und Avatar-LEFT neigen
+    // Hm-Phase: langsam nach vorne-Avatar-LINKS neigen
     if(hmNeigen){
       const t = (performance.now() - hmStartTime) / hmDuration;
-      const clamped = Math.max(0, Math.min(1, t));
-      // smoothstep für weiche Bewegung
-      const easeT = clamped * clamped * (3 - 2 * clamped);
-
-      const maxDown = 0.3;   // Neigung nach vorne
-      const maxSide = -0.3;  // NEGATIV = andere Richtung als vorher (Avatar-links)
-
-      model.rotation.x = hmStartRotX + maxDown * easeT;
-      model.rotation.y = hmStartRotY + maxSide * easeT;
-
-      if(clamped >= 1){
-        // Zielpose erreicht, dort stehen bleiben, bis Antwort kommt
+      if(t >= 1){
         hmNeigen = false;
+        model.rotation.x = hmStartRotX + 0.3;
+        model.rotation.y = hmStartRotY - 0.3;   // <- WICHTIG: MINUS = nach Avatar-Links
+      } else {
+        model.rotation.x = hmStartRotX + 0.3 * t;
+        model.rotation.y = hmStartRotY - 0.3 * t; // <- hier auch MINUS
       }
     }
 
     // Normal Talking Animation
     if(talking && !hmNeigen){
-      // während der Antwort langsam Richtung targetRotY (frontal) drehen,
-      // mit leichter lebendiger Bewegung
       model.rotation.y = THREE.MathUtils.lerp(
         model.rotation.y,
         targetRotY + Math.sin(Date.now()*0.0015)*0.03 - Math.PI/2,
-        0.08
+        0.02
       );
       model.rotation.x = THREE.MathUtils.lerp(
         model.rotation.x,
@@ -177,7 +165,7 @@ function animate(){
       model.rotation.z = Math.sin(Date.now()*0.0012)*0.015;
       model.position.y = baseY + Math.sin(Date.now()*0.01)*0.002;
     } 
-    // Idle / Ruhig nur dann, wenn wir NICHT in Hmmm sind UND NICHT mitten im Zyklus
+    // Idle nur, wenn NICHT Hmmm und wir NICHT mitten im Hmmm-Zyklus sind
     else if(!hmNeigen && !hmStarted){
       model.rotation.y = THREE.MathUtils.lerp(
         model.rotation.y,
@@ -195,6 +183,7 @@ function animate(){
   }
   renderer.render(scene,camera);
 }
+
 
 
 /* ------------------------------
