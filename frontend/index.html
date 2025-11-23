@@ -251,17 +251,23 @@ if("webkitSpeechRecognition" in window){
         body: JSON.stringify({text:lastTranscript})
       })
       .then(resp => resp.json())
-      .then(data => {
-        rising = true;
-        riseStartTime = performance.now();
-        speak(data.answer);
+     .then(data => {
+  rising = true;
+  riseStartTime = performance.now();
+  speak(data.answer);
 
-        setTimeout(()=>{
-          rising = true;
-          riseStartTime = performance.now();
-          hmStarted = false;
-          lastTranscript = "";
-        }, 500); 
+  setTimeout(()=>{
+    rising = true;
+    riseStartTime = performance.now();
+    hmStarted = false;
+    lastTranscript = "";
+    
+    // 🔄 WICHTIG: Reset für neuen Zyklus
+    greeted = false;         // ← Beim nächsten Mikrofon-Tipp wieder Begrüßung sagen
+    targetRotY = baseRotY;   // ← Nach rechts neigen (Idle-Pose)
+
+  }, 500); 
+})
       })
       .catch(e => console.error("Fehler bei /ask:", e));
     }
