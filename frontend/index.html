@@ -114,6 +114,10 @@ let targetRotY = baseRotY;
 let targetRotX = baseRotX;
 let baseY = 0;
 
+// NEU: einfache State-Machine-Variablen (noch ohne tiefen Eingriff)
+let state = "idle";      // idle, greeting, listening, hm, answering usw.
+let nextState = null;
+
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0,0,2.8);
@@ -122,6 +126,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setClearColor(0x000000);
 
+// LICHT – unverändert, damit der goldene Avatar gleich bleibt
 const light = new THREE.DirectionalLight(0xffffff,2);
 light.position.set(1,1,2);
 scene.add(light);
@@ -177,28 +182,32 @@ function animate(){
       }
     }
 
-    // Normal Talking Animation – langsam zurück auf frontal drehen
-if (talking && !hmNeigen) {
-  const t = Date.now();
-  
-  // Sanfte Atmung
-  const breathe = Math.sin(t * 0.0015) * 0.01;
-  model.position.y = baseY + breathe;
+    // Normal Talking Animation – Kopf langsam zurück Richtung frontal
+    if(talking && !hmNeigen){
+      const tNow = Date.now();
 
-  // Zwischenposition: langsam zur Frontalansicht drehen
-  const smoothRotY = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI / 2, 0.015);  
-  const swayY = Math.sin(t * 0.0013) * 0.015; // kleine Lebendigkeit
+      // leichte Atmung
+      const breathe = Math.sin(tNow * 0.0015) * 0.008;
+      model.position.y = baseY + breathe;
 
-  model.rotation.y = smoothRotY + swayY;
-  model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.015);
-  model.rotation.z = Math.sin(t * 0.001) * 0.01;
-} else if (!hmNeigen) {
-  // Ruhezustand
-  model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI / 2, 0.02);
-  model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
-  model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
-  model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.02);
-}
+      // Ziel: Frontalrichtung (targetRotY - PI/2), langsam annähern
+      const frontalY = targetRotY - Math.PI / 2;
+      const swayY = Math.sin(tNow * 0.0012) * 0.015; // leichte Lebendigkeit
+
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.03) + swayY;
+      model.rotation.x = THREE.MathUtils.lerp(
+        model.rotation.x,
+        targetRotX + Math.sin(tNow * 0.0019) * 0.015,
+        0.08
+      );
+      model.rotation.z = Math.sin(tNow * 0.0012) * 0.015;
+    } else if(!hmNeigen){
+      // Ruhezustand
+      model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetRotY - Math.PI/2, 0.02);
+      model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, targetRotX, 0.02);
+      model.rotation.z = THREE.MathUtils.lerp(model.rotation.z || 0, 0, 0.02);
+      model.position.y = THREE.MathUtils.lerp(model.position.y, baseY, 0.02);
+    }
   }
   renderer.render(scene,camera);
 }
@@ -291,6 +300,7 @@ micBtn.onclick = () => {
     greeted = true;
     rising = true;
     riseStartTime = performance.now();
+    state = "greeting";
     speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer. Sprecht, was begehrt Ihr?");
     return;
   }
