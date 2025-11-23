@@ -22,20 +22,43 @@
     color: white;
   }
   h1 {
-    position: absolute; top: 20px; width: 100%; text-align: center;
-    font-size: 2em; color: #e0b36b;
+    position: absolute;
+    top: 20px;
+    width: 100%;
+    text-align: center;
+    font-size: 2em;
+    color: #e0b36b;
     animation: pulse 3s ease-in-out infinite;
   }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.85} }
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.85; }
+  }
   #avatarCanvas { width:100%; height:100%; display:block; }
   #micBtn {
-    position:absolute; bottom:60px; left:50%;
+    position:absolute;
+    bottom:60px;
+    left:50%;
     transform:translateX(-50%);
-    width:80px; height:80px;
-    border-radius:50%; border:none; background:#222;
-    color:white; font-size:32px; cursor:pointer;
+    width:80px;
+    height:80px;
+    border-radius:50%;
+    border:none;
+    background:#222;
+    color:white;
+    font-size:32px;
+    cursor:pointer;
   }
   #micBtn:hover { background:#444; }
+  #loading {
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    color:#ccc;
+    font-size:1.1em;
+    text-align:center;
+  }
 </style>
 </head>
 
@@ -72,33 +95,52 @@ let baseY = 0;
    THREE.js SETUP
 ----------------------------- */
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 1000);
-camera.position.set(0,0,2.8);
-const renderer = new THREE.WebGLRenderer({canvas: document.getElementById("avatarCanvas"), antialias:true});
+const camera = new THREE.PerspectiveCamera(
+  30,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+camera.position.set(0, 0, 2.8);
+
+const renderer = new THREE.WebGLRenderer({
+  canvas: document.getElementById("avatarCanvas"),
+  antialias: true
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setClearColor(0x000000);
 
-/* Licht – Gold bleibt GOLD! */
-scene.add(new THREE.DirectionalLight(0xffffff,2).position.set(1,1,2));
-scene.add(new THREE.AmbientLight(0xffffff,0.8));
-scene.add(new THREE.PointLight(0xffffff,0.8).position.set(0,0.5,2));
+/* Licht – GOLD bleibt GOLD! */
+const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+dirLight.position.set(1, 1, 2);
+scene.add(dirLight);
+
+const ambLight = new THREE.AmbientLight(0xffffff, 0.8);
+scene.add(ambLight);
+
+const frontLight = new THREE.PointLight(0xffffff, 0.8);
+frontLight.position.set(0, 0.5, 2);
+scene.add(frontLight);
 
 /* -----------------------------
    MODEL LADEN
 ----------------------------- */
 const loader = new THREE.GLTFLoader();
-loader.load("./avatar.glb", gltf=>{
+loader.load("./avatar.glb", gltf => {
   model = gltf.scene;
 
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  model.scale.setScalar( (1.5 / Math.max(size.x,size.y,size.z)) * 0.8 );
+  model.scale.setScalar((1.5 / Math.max(size.x, size.y, size.z)) * 0.8);
   const center = box.getCenter(new THREE.Vector3());
   model.position.sub(center);
 
+  // Basis-Y für Atmung merken
+  baseY = model.position.y;
+
   /* → Idle Pose (leicht nach RECHTS) */
-  model.rotation.y = baseRotY - Math.PI/2;
+  model.rotation.y = baseRotY - Math.PI / 2;
   model.rotation.x = baseRotX;
 
   scene.add(model);
@@ -109,56 +151,70 @@ loader.load("./avatar.glb", gltf=>{
 /* -----------------------------
    ANIMATE LOOP
 ----------------------------- */
-function animate(){
+function animate() {
   requestAnimationFrame(animate);
-  if(!model) return;
+  if (!model) return;
 
   const now = performance.now();
 
   // 1) Begrüßung ODER Antwort: langsam frontal
-  if(rising){
+  if (rising) {
     const t = (now - riseStartTime) / riseDuration;
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, -Math.PI/2, 0.03);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, -Math.PI / 2, 0.03);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
-    if(t >= 1) rising = false;
+    if (t >= 1) rising = false;
   }
 
   // 2) „Hmmm… einen Moment“ – nach AVATAR-LINKS neigen
-  else if(hmNeigen){
+  else if (hmNeigen) {
     const t = Math.min(1, (now - hmStartTime) / hmDuration);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX + 0.3, t);
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY - 0.3 - Math.PI/2, t);
+    model.rotation.y = THREE.MathUtils.lerp(
+      model.rotation.y,
+      baseRotY - 0.3 - Math.PI / 2,
+      t
+    );
+    if (t >= 1) {
+      hmNeigen = false;
+    }
   }
 
-  // 3) WÄHREND der Antwort → langsam zurück nach frontal
-  else if(talking){
+  // 3) WÄHREND der Antwort → langsam zurück nach frontal + Atmung
+  else if (talking) {
     model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, -Math.PI/2, 0.02);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, -Math.PI / 2, 0.02);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.02);
   }
 
   // 4) Idle → leicht nach AVATAR-RECHTS geneigt
-  else{
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY - Math.PI/2, 0.02);
+  else {
+    model.rotation.y = THREE.MathUtils.lerp(
+      model.rotation.y,
+      baseRotY - Math.PI / 2,
+      0.02
+    );
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.02);
+    model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
   }
 
-  renderer.render(scene,camera);
+  renderer.render(scene, camera);
 }
 
 /* -----------------------------
    SPEECH RECOGNITION
 ----------------------------- */
 let recognition;
-if("webkitSpeechRecognition" in window){
+if ("webkitSpeechRecognition" in window) {
   recognition = new webkitSpeechRecognition();
   recognition.lang = "de-DE";
   recognition.continuous = false;
 
-  recognition.onresult = e => lastTranscript = e.results[0][0].transcript;
+  recognition.onresult = e => {
+    lastTranscript = e.results[0][0].transcript;
+  };
 
   recognition.onend = () => {
-    if(STATE === "listen" && lastTranscript){
+    if (STATE === "listen" && lastTranscript) {
       STATE = "hmmm";
       hmNeigen = true;
       hmStartTime = performance.now();
@@ -168,22 +224,31 @@ if("webkitSpeechRecognition" in window){
       // 👉 Frage an dein Backend
       fetch("/ask", {
         method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({text: lastTranscript})
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: lastTranscript })
       })
-      .then(r => r.json())
-      .then(data => {
-        STATE = "answer";
-        rising = true;          // frontal drehen
-        riseStartTime = performance.now();
-        speaking = true;
-        speak(data.answer);
+        .then(r => r.json())
+        .then(data => {
+          STATE = "answer";
+          hmNeigen = false;
+          rising = true;          // frontal drehen
+          riseStartTime = performance.now();
+          speak(data.answer);
 
-        setTimeout(() => {
-          model.rotation.y = baseRotY - Math.PI/2;   // ← Idle-Pose
-          greeted = false;        // → NÄCHSTER Mikrotipp = Begrüßung
-        }, 500);
-      });
+          setTimeout(() => {
+            model.rotation.y = baseRotY - Math.PI / 2;   // ← Idle-Pose
+            greeted = false;        // → NÄCHSTER Mikrotipp = Begrüßung
+            STATE = "idle";
+          }, 500);
+        })
+        .catch(err => {
+          console.error("Fehler bei /ask:", err);
+          STATE = "idle";
+          hmNeigen = false;
+          rising = false;
+        });
+    } else {
+      STATE = "idle";
     }
   };
 }
@@ -192,7 +257,8 @@ if("webkitSpeechRecognition" in window){
    BUTTON
 ----------------------------- */
 document.getElementById("micBtn").onclick = () => {
-  if(!greeted){
+  // Erste Benutzung → Begrüßung
+  if (!greeted) {
     greeted = true;
     STATE = "greet";
     rising = true;
@@ -200,24 +266,39 @@ document.getElementById("micBtn").onclick = () => {
     speak("Seid gegrüßt, mein Freund...", false);
     return;
   }
-  recognition.start();
+
+  // Danach → Spracherkennung
+  if (!recognition) {
+    alert("Spracherkennung wird von diesem Browser nicht unterstützt.");
+    return;
+  }
+  lastTranscript = "";
   STATE = "listen";
+  recognition.start();
 };
 
 /* -----------------------------
    SPEAK FUNCTION
 ----------------------------- */
 let maleVoice = null;
-function speak(text, slow=false){
-  if(!text) return;
+function speak(text, slow = false) {
+  if (!text) return;
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
   u.rate = slow ? 0.5 : 0.95;
-  u.onstart = () => talking=true;
-  u.onend   = () => talking=false;
+  u.onstart = () => { talking = true; };
+  u.onend = () => { talking = false; };
   speechSynthesis.speak(u);
 }
 
+/* -----------------------------
+   RESIZE HANDLING (optional, aber sinnvoll)
+----------------------------- */
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
 </script>
 </body>
 </html>
