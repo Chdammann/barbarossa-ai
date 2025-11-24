@@ -82,18 +82,20 @@ let lastTranscript = "";
 let talking = false, greeted = false;
 
 // === Bewegungszustände ===
-let frontalFix = true;        // ⭐ nach Laden: NOCH NICHT frontal ausrichten
-let hmNeigen = false;
-let hmStartTime = 0;
-let rising = false;
-let riseStartTime = 0;
+let frontalFix = true;        // ⭐ nach Laden: noch nicht frontal ausrichten
+let hmNeigen = false, hmStartTime = 0;
+let rising = false, riseStartTime = 0;
+
+// ⭐ FEHLTEN – brauchen wir für Rückkehr nach rechts!
+let toIdlePose = false, toIdleStart = 0;
+const toIdleDuration = 1500;  // Rückkehrzeit (kannst du anpassen)
 
 // === Animationszeiten ===
-const hmDuration = 10000;     // Hmmm sehr langsam
-const riseDuration = 1200;    // Begrüßung / Antwort → frontal drehen
+const hmDuration = 10000;     // “Hmmm…” sehr langsam
+const riseDuration = 1200;    // “Antwort / Begrüßung → frontal”
 
 // === Grund-Positionen Avatar ===
-let baseRotY = -0.35;         // Start leicht schräg nach links
+let baseRotY = -0.35;         // Start leicht schräg nach rechts
 let baseRotX = 0.25;
 let baseY = 0;
 
@@ -102,6 +104,7 @@ function resetMovements() {
   hmNeigen = false;
   rising = false;
   talking = false;
+  // ❗ toIdlePose NICHT hier zurücksetzen – der braucht Zeit zum auslaufen!
 }
 
 /* -----------------------------
@@ -242,38 +245,46 @@ if ("webkitSpeechRecognition" in window) {
       STATE = "hmmm";
       hmNeigen = true;
       hmStartTime = performance.now();
-      speak("Hmmmm... einen Moment", true); // langsam sprechen
+      speak("Hmmmm... einen Moment", true);
 
-      fetch("/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: lastTranscript })
-      })
+      // ⏳ MINDESTENS 3000 ms Hmmm aktiv halten
+      const minHmmmTime = 3000;
+      const delta = performance.now() - hmStartTime;
+      const delay = Math.max(0, minHmmmTime - delta);
+
+      setTimeout(() => {
+        fetch("/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: lastTranscript })
+        })
         .then(r => r.json())
         .then(data => {
 
           // === 3. ANTWORT BEGINNT → FRONTAL ===
           resetMovements();
           STATE = "answer";
-          frontalFix = false;           // sicherstellen, dass Animation nicht blockiert
+          frontalFix = false;
           rising = true;
           riseStartTime = performance.now();
           speak(data.answer);
 
-          // ⭐ NACH DER ANTWORT → ZURÜCK IN NEIGUNG ===
+          // ⭐ NACH DER ANTWORT → ZURÜCK IN NEIGUNG (rechts) ===
           setTimeout(() => {
             resetMovements();
             greeted = false;
-            STATE = "idle";
 
-            toIdlePose = true;          // Rückkehr zur Ausgangs-Neigung starten
+            toIdlePose = true;          // ⭐ erst Bewegung aktivieren
             toIdleStart = performance.now();
+
+            STATE = "idle";             // ⭐ DANN idle setzen
           }, 500);
         })
         .catch(() => {
           resetMovements();
           STATE = "idle";
         });
+      }, delay);  // setTimeout Ende
 
     } else {
       resetMovements();
@@ -281,7 +292,6 @@ if ("webkitSpeechRecognition" in window) {
     }
   };
 }
-
 
 /* -----------------------------
    BUTTON – GREET & LISTEN
