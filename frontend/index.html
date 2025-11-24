@@ -155,29 +155,27 @@ loader.load("./avatar.glb", gltf => {
   document.getElementById("loading").style.display = "none";
   animate();
 });
-/* -----------------------------
-   ANIMATE LOOP – SAUBER & EINFACH
------------------------------ */
+/* -----------------------------------
+   ANIMATE – FINAL STABLE VERSION
+----------------------------------- */
 function animate() {
   requestAnimationFrame(animate);
   if (!model) return;
 
   const now = performance.now();
+  const frontalY = -Math.PI / 2;
+  const rightY   = baseRotY - Math.PI / 2;
+  const leftY    = frontalY + 0.25;
 
-  const frontalY = -Math.PI / 2;                 // frontal zur Kamera
-  const rightY   = baseRotY - Math.PI / 2;       // Startpose: leicht nach rechts
-  const leftY    = frontalY + 0.25;              // "Hmmm": leicht nach links
-
-  // 0️⃣ Direkt nach dem Laden → Ausgangsposition (rechts)
+  // 0️⃣ START: leichte Neigung rechts
   if (frontalFix) {
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, rightY, 0.08);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.08);
-    model.position.y = baseY + Math.sin(now * 0.0012) * 0.006;
     renderer.render(scene, camera);
     return;
   }
 
-  // 1️⃣ GREET / ANSWER → FRONTAL (rising aktiv)
+  // 1️⃣ GREET / BEGINN DER ANTWORT → FRONTAL
   if (rising) {
     const t = (now - riseStartTime) / riseDuration;
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.06);
@@ -185,34 +183,33 @@ function animate() {
     if (t >= 1) rising = false;
   }
 
-  // 2️⃣ HMMM-PHASE → LANGSAM NACH LINKS NEIGEN
+  // 2️⃣ HMMM → LANGSAM LINKS (hmDuration gültig!)
   else if (hmNeigen) {
     const t = Math.min(1, (now - hmStartTime) / hmDuration);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX + 0.25, t);
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, leftY, t);
   }
 
-  // 3️⃣ TALKING → frontal + Atmen während Begrüßung / Antwort
+  // 3️⃣ TALKING → FRONTAL & ATMUNG
   else if (talking) {
     model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.03);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
   }
 
-  // 4️⃣ WARTEN AUF FRAGE (STATE = "listen") → FRONTAL + Atmen
+  // 4️⃣ WARTEN AUF FRAGE → FRONTAL
   else if (STATE === "listen" || STATE === "greet" || STATE === "answer") {
-    model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
+    model.position.y = baseY + Math.sin(now * 0.0012) * 0.006;
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.03);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
   }
 
-  // 5️⃣ ECHTES IDLE (nach Antwort, wenn greeted = false) → zurück nach rechts
-// 5️⃣ ECHTES IDLE NUR dann, wenn KEINE Antwort mehr gesprochen wird!
-else if (STATE === "idle" && !talking) {
+  // 5️⃣ WIRKLICHES ENDE → JETZT erst ZURÜCK NACH RECHTS!
+  else if (STATE === "idle" && !talking && !rising) {
     model.position.y = baseY + Math.sin(now * 0.0012) * 0.006;
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, rightY, 0.03);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
-}
+  }
 
   renderer.render(scene, camera);
 }
