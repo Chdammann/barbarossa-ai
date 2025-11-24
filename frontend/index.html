@@ -165,9 +165,9 @@ function animate() {
   if (!model) return;
 
   const now = performance.now();
-  const frontalY = -Math.PI / 2;  // deine Frontblickrichtung
+  const frontalY = -Math.PI / 2;  // deine Frontalblickrichtung
 
-  // 0️⃣  NACH LADEN → NICHT FRONTAL
+  // 0️⃣ Nach Laden → AVATAR BLEIBT LEICHT SCHRÄG (frontalFix = true)
   if (frontalFix) {
     renderer.render(scene, camera);
     return;
@@ -181,7 +181,7 @@ function animate() {
     if (t >= 1) rising = false;
   }
 
-  // 2️⃣ HMMM-PHASE → NUR links neigen & bleiben
+  // 2️⃣ HMMM-PHASE → NUR links neigen & dort bleiben (langsam)
   else if (hmNeigen) {
     const t = Math.min(1, (now - hmStartTime) / hmDuration);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX + 0.25, t);
@@ -195,7 +195,15 @@ function animate() {
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.02);
   }
 
-  // 4️⃣ IDLE → sanftes Atmen, leicht schräg
+  // 4️⃣ NACH DER ANTWORT → zur Ausgangs-Neigung zurück!
+  else if (toIdlePose) {
+    const t = (now - toIdleStart) / toIdleDuration;
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY - Math.PI / 2, 0.03);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
+    if (t >= 1) toIdlePose = false; // Bewegung abgeschlossen
+  }
+
+  // 5️⃣ IDLE → leicht schräg + sanft atmen
   else {
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.02);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.02);
@@ -206,8 +214,9 @@ function animate() {
 }
 
 /* -----------------------------
-   SPEECH RECOGNITION – STATE MACHINE
+   STATE MACHINE – FINAL VERSION
 ----------------------------- */
+
 let recognition;
 if ("webkitSpeechRecognition" in window) {
   recognition = new webkitSpeechRecognition();
@@ -220,15 +229,13 @@ if ("webkitSpeechRecognition" in window) {
 
   recognition.onend = () => {
     if (STATE === "listen" && lastTranscript) {
-      
-      // === 2. HMMMM-PHASE → NUR links neigen & bleiben
-      resetMovements();                 // 🛡️ Sicherheitslayer
+
+      // === 2. HMMM-PHASE → LANGSAM LINKS NEIGEN
+      resetMovements();
       STATE = "hmmm";
       hmNeigen = true;
       hmStartTime = performance.now();
-
-      speak("Hmmmm... einen Moment", true);  // langsam sprechen
-
+      speak("Hmmmm... einen Moment", true); // langsamer gesprochen
 
       fetch("/ask", {
         method: "POST",
@@ -238,17 +245,22 @@ if ("webkitSpeechRecognition" in window) {
         .then(r => r.json())
         .then(data => {
 
-          // === 3. ANTWORT BEGINNT → zurück in Frontalposition
-          resetMovements();            // 🛡️ IMMER zuerst alles deaktivieren
+          // === 3. ANTWORT BEGINNT → FRONTAL
+          resetMovements();
           STATE = "answer";
           rising = true;
           riseStartTime = performance.now();
           speak(data.answer);
 
-          // Nach Antwort → zurück zu idle
+          // ⭐ NACH DER ANTWORT → ZURÜCK IN NEIGUNG
           setTimeout(() => {
+            resetMovements();
             greeted = false;
             STATE = "idle";
+
+            toIdlePose = true;   // ⭐ NEU → Ausgangs-Position einleiten
+            toIdleStart = performance.now();
+
           }, 500);
         })
         .catch(() => {
@@ -265,35 +277,31 @@ if ("webkitSpeechRecognition" in window) {
 
 
 /* -----------------------------
-   BUTTON – ABLAUFSTART
+   BUTTON – GREET & LISTEN
 ----------------------------- */
 document.getElementById("micBtn").onclick = () => {
-
-  // === 1. BEGRÜSSUNG STARTET ===
   if (!greeted) {
     resetMovements();
     greeted = true;
     STATE = "greet";
 
-    frontalFix = false;            // ⭐ erst jetzt darf Frontal aktiviert werden!
+    frontalFix = false;          // ⭐ ERST JETZT darf er frontal werden
     rising = true;
     riseStartTime = performance.now();
 
     speak(
-      "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, " +
-      "nach tausend Jahren im Kaiserberg erwacht. Was ist Euer Begehr?",
+      "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg erwacht. Was ist Euer Begehr?",
       false
     );
     return;
   }
 
-  // === LISTEN ===
   if (!recognition) {
     alert("Spracherkennung wird nicht unterstützt.");
     return;
   }
 
-  resetMovements();               // 🛡️ Sicherheitslayer
+  resetMovements();
   lastTranscript = "";
   STATE = "listen";
   recognition.start();
