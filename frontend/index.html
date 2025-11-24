@@ -227,23 +227,23 @@ else if (STATE === "idle" && !talking && !rising) {
   model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
 }
 
-// ⭐ NATÜRLICHE Blickbewegungen – X & Y nur ganz leicht!
-const driftX = Math.sin(now * 0.0006) * 0.01;  // leichtes "Nicken"
-const driftY = Math.sin(now * 0.0004) * 0.008; // seitliches "Denken"
+// ⭐ NATÜRLICHE Blickbewegungen – X & Y sichtbarer, aber ruhig
+const driftX = Math.sin(now * 0.0010) * 0.02;  // leichtes Nicken (sichtbar!)
+const driftY = Math.sin(now * 0.0008) * 0.015; // seitliches Denken (sichtbar!)
 
-// X-Achse → NICHT addieren – nur sanfter Drift RICHTUNG basis
+// X → sanft Richtung baseRotX + Variation
 model.rotation.x = THREE.MathUtils.lerp(
   model.rotation.x,
   baseRotX + driftX,
-  0.01
+  0.02   // etwas schneller reagieren
 );
 
-// Y-Achse → nur wenn NICHT hmNeigen / rising aktiv
+// Y → nur wenn keine Hmmm-Phase aktiv
 if (!hmNeigen && !rising) {
   model.rotation.y = THREE.MathUtils.lerp(
     model.rotation.y,
     model.rotation.y + driftY,
-    0.008
+    0.012
   );
 }
 
