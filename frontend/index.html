@@ -83,29 +83,29 @@ let talking = false, greeted = false;
 
 // === Bewegungszustände ===
 let frontalFix = true;              // nach Laden: noch nicht frontal
-let hmNeigen = false, hmStartTime = 0;
-let rising   = false, riseStartTime = 0;
+let hmNeigen   = false, hmStartTime = 0;
+let rising     = false, riseStartTime = 0;
 
-// ⭐ FEHLEND – WICHTIG!  → steuert die Rückkehr nach rechts
-let toIdlePose = false, toIdleStart = 0;
-const toIdleDuration = 2000;    // SANFTE Rückkehr (du kannst 3000 nehmen!)
-
+// ⭐ Rückkehr nach rechts – nur am ENDE gesteuert!
+let toIdlePose   = false, toIdleStart = 0;
+const toIdleDuration = 2000;        // sanfte Rückkehr (kann z.B. 3000 sein)
 
 // === Animationszeiten (ms) ===
-const hmDuration   = 10000;         // "Hmmm..." sehr langsam
+const hmDuration   = 10000;         // Hmmm sehr langsam
 const riseDuration = 1200;          // Begrüßung / Antwort → frontal
 
-// === Grund-Position Avatar ===
-let baseRotY = -0.35;  // leicht nach rechts geneigt
+// === Grundposition Avatar ===
+let baseRotY = -0.35;               // leicht nach rechts geneigt
 let baseRotX = 0.25;
 let baseY = 0;
 
-// 🛡️  Sicherheitslayer – niemals gleichzeitig mehrere Bewegungen
+// 🛡️ NIEMALS gleichzeitig mehrere Bewegungen
+// ❗ Wichtig: toIdlePose DARF NICHT hier gelöscht werden,
+// denn es wird nur von der StateMachine gesetzt!
 function resetMovements() {
   hmNeigen = false;
   rising   = false;
   talking  = false;
-  // ❗ toIdlePose hier NICHT löschen!
 }
 /* -----------------------------
    THREE.js SETUP
@@ -181,7 +181,7 @@ function animate() {
     return;
   }
 
-  // 1️⃣ GREET / ANTWORTBEGINN → FRONTAL!
+  // 1️⃣ GREET / ANTWORTBEGINN → FRONTAL
   if (rising) {
     const t = (now - riseStartTime) / riseDuration;
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.06);
@@ -196,37 +196,39 @@ function animate() {
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, leftY, t);
   }
 
-  // 3️⃣ ***NEU*** → ANTWORT LÄUFT → FRONTAL!
+  // 3️⃣ ANTWORT → FRONTAL
   else if (STATE === "answer") {
     model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.03);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
   }
 
-  // 4️⃣ TALKING = WÄHREND SPRECHEN → FRONTAL & ATMEN
+  // 4️⃣ TALKING = SPRICHT → FRONTAL & ATMEN
   else if (talking) {
     model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.03);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
   }
 
-  // 5️⃣ FRAGE WARTEZEIT (= listen) → FRONTAL
+  // 5️⃣ WARTET AUF FRAGE → FRONTAL
   else if (STATE === "listen" || STATE === "greet") {
     model.position.y = baseY + Math.sin(now * 0.0012) * 0.006;
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.03);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
   }
 
-  // 6️⃣ WIRKLICHES ENDE → ZURÜCK NACH RECHTS
-  else if (STATE === "idle" && !talking && !rising) {
+  // 6️⃣ ENDE → SANFT ZURÜCK NACH RECHTS
+  else if (toIdlePose) {
+    const t = Math.min(1, (now - toIdleStart) / toIdleDuration);
     model.position.y = baseY + Math.sin(now * 0.0012) * 0.006;
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, rightY, 0.03);
-    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, rightY, t);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, t);
+    if (t >= 1) toIdlePose = false;
   }
 
   renderer.render(scene, camera);
 }
-  /* -----------------------------
+/* -----------------------------
    STATE MACHINE – LOGIK (FINAL)
 ----------------------------- */
 
@@ -241,62 +243,65 @@ if ("webkitSpeechRecognition" in window) {
     lastTranscript = e.results[0][0].transcript;
   };
 
-  // Aufnahme ist fertig:
+  // Aufnahme ENDET:
   recognition.onend = () => {
     if (STATE === "listen" && lastTranscript) {
 
-      // 1) Hmmm – Kopf nach links (langsam)
+      // 1️⃣ Hmmm – Kopf langsam nach links
       resetMovements();
       STATE = "hmmm";
       hmNeigen = true;
       hmStartTime = performance.now();
       speak("Hmmmm... einen Moment", true);
 
-      // ⭐ Mindest-Hmmm-Zeit (WICHTIG)
-      const minHmmmTime = 4000; // kannst du auf 6000 setzen für noch länger
+      // ⭐ Mindest-Hmmm-Zeit erzwingen → sonst zu schnell!
+      const minHmmmTime = 4000;
       const tElapsed = performance.now() - hmStartTime;
       const delay = Math.max(0, minHmmmTime - tElapsed);
 
-      // fetch erst nach Hmmm-Zeit:
+      // 2️⃣ fetch erst nach Mindestdauer!
       setTimeout(() => {
         fetch("/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text: lastTranscript })
         })
-        .then(r => r.json())
-        .then(data => {
+          .then(r => r.json())
+          .then(data => {
 
-          // 2) Antwort beginnt frontal
-          resetMovements();
-          STATE = "answer";
-          rising = true;                 // animate() erkennt: FRONTAL
-          riseStartTime = performance.now();
-          speak(data.answer);
+            // 3️⃣ Antwort beginnt → frontal drehen
+            resetMovements();
+            STATE = "answer";
+            rising = true;
+            riseStartTime = performance.now();
+            speak(data.answer);
 
-          // ⭐ WICHTIG: Idle NUR wenn Antwort WIRKLICH fertig ist!
-          const checkEnd = setInterval(() => {
-            if (!talking && !rising) {
-              clearInterval(checkEnd);
-              resetMovements();
-              greeted = false;
-              STATE = "idle";           // jetzt erst Idle → Neigung nach rechts
-            }
-          }, 200);
+            // 4️⃣ Idle erst NACH GESPROCHENE Antwort!
+            const checkEnd = setInterval(() => {
+              // warten bis Sprechen WIRKLICH fertig ist
+              if (!talking && !rising) {
+                clearInterval(checkEnd);
+                resetMovements();
+                greeted = false;
+                
+                // JETZT → IdlePose aktivieren (zurück nach rechts!)
+                toIdlePose = true;
+                toIdleStart = performance.now();
+                STATE = "idle";
+              }
+            }, 200);
 
-        })
-        .catch(() => {
-          resetMovements();
-          STATE = "idle";
-        });
+          })
+          .catch(() => {
+            resetMovements();
+            STATE = "idle";
+          });
       }, delay);
 
     } else {
       resetMovements();
       STATE = "idle";
     }
-  };
-}
 /* -----------------------------
    MÄNNLICHE STIMME SUCHEN
 ----------------------------- */
