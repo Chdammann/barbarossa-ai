@@ -158,55 +158,62 @@ loader.load("./avatar.glb", gltf => {
   animate();
 });
 /* -----------------------------
-   ANIMATE LOOP – FINAL & FIXED
+   ANIMATE LOOP – KORRIGIERT
 ----------------------------- */
 function animate() {
   requestAnimationFrame(animate);
   if (!model) return;
 
   const now = performance.now();
-  const frontalY = -Math.PI / 2;         // 0° nach vorne
-  const idleY    = frontalY - 0.35;       // KLAR nach links geneigt (statt aus baseRotY rechnen)
 
-  // 0️⃣ Nach Laden → nicht frontal
+  // Blickrichtungen
+  const frontalY = -Math.PI / 2;              // frontal zur Kamera
+  const rightY   = baseRotY - Math.PI / 2;    // deine Ausgangsposition (leicht nach rechts)
+  const leftY    = frontalY + 0.25;           // leicht nach links relativ zu frontal
+
+  // 0️⃣ Nach Laden → in Ruhe, Ausgangsposition (leicht nach rechts)
   if (frontalFix) {
+    // sicherstellen, dass er wirklich in der Startpose bleibt
+    model.rotation.y = rightY;
+    model.rotation.x = baseRotX;
     renderer.render(scene, camera);
     return;
   }
 
-  // 1️⃣ GREET / ANSWER → FRONTAL
+  // 1️⃣ GREET / ANSWER → FRONTAL (rising aktiv)
   if (rising) {
     const t = (now - riseStartTime) / riseDuration;
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.06); // fix: schneller, genauer
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.06);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.06);
     if (t >= 1) rising = false;
   }
 
-  // 2️⃣ HMMM → LANGSAM LINKS (garantiert links!)
+  // 2️⃣ HMMM-PHASE → LANGSAM NACH LINKS NEIGEN (UND DORT BLEIBEN)
   else if (hmNeigen) {
     const t = Math.min(1, (now - hmStartTime) / hmDuration);
+    // Kopf leicht nach vorne + seitlich links
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX + 0.25, t);
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, idleY, t); // idleY = frontalY - 0.35
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, leftY, t);
   }
 
-  // 3️⃣ TALKING → frontal
+  // 3️⃣ TALKING → frontal + leichtes Atmen
   else if (talking) {
     model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.03);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
   }
 
-  // 4️⃣ NACH ANTWORT → ZURÜCK zum Start (links)
+  // 4️⃣ NACH DER ANTWORT → ZURÜCK IN AUSGANGSPOSITION (leicht nach rechts)
   else if (toIdlePose) {
     const t = Math.min(1, (now - toIdleStart) / toIdleDuration);
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, idleY, 0.05); // genauer!
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, rightY, 0.05);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.05);
     if (t >= 1) toIdlePose = false;
   }
 
-  // 5️⃣ IDLE → sanftes Atmen in linker Neigung
+  // 5️⃣ IDLE → leicht nach rechts geneigt + sanftes Atmen
   else {
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, idleY, 0.02);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, rightY, 0.02);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.02);
     model.position.y = baseY + Math.sin(now * 0.0012) * 0.006;
   }
