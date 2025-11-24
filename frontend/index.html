@@ -243,78 +243,76 @@ if ("webkitSpeechRecognition" in window) {
     lastTranscript = e.results[0][0].transcript;
   };
 
-  // Aufnahme ENDET:
+  // Aufnahme beendet:
   recognition.onend = () => {
     if (STATE === "listen" && lastTranscript) {
 
-      // 1️⃣ Hmmm – Kopf langsam nach links
+      // 1️⃣ HMMM – Kopf langsam nach links:
       resetMovements();
       STATE = "hmmm";
       hmNeigen = true;
       hmStartTime = performance.now();
       speak("Hmmmm... einen Moment", true);
 
-      // ⭐ Mindest-Hmmm-Zeit erzwingen → sonst zu schnell!
-      const minHmmmTime = 4000;
-      const tElapsed = performance.now() - hmStartTime;
-      const delay = Math.max(0, minHmmmTime - tElapsed);
-
-      // 2️⃣ fetch erst nach Mindestdauer!
+      // Mindestwartezeit einhalten:
+      const MIN_HMMM = 4000;
       setTimeout(() => {
+
         fetch("/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text: lastTranscript })
         })
-          .then(r => r.json())
-          .then(data => {
+        .then(r => r.json())
+        .then(data => {
 
-            // 3️⃣ Antwort beginnt → frontal drehen
-            resetMovements();
-            STATE = "answer";
-            rising = true;
-            riseStartTime = performance.now();
-            speak(data.answer);
+          // 2️⃣ ANTWORT BEGINNT → frontal
+          resetMovements();
+          STATE = "answer";
+          rising = true;
+          riseStartTime = performance.now();
+          speak(data.answer);
 
-            // 4️⃣ Idle erst NACH GESPROCHENE Antwort!
-            const checkEnd = setInterval(() => {
-              // warten bis Sprechen WIRKLICH fertig ist
-              if (!talking && !rising) {
-                clearInterval(checkEnd);
-                resetMovements();
-                greeted = false;
-                
-                // JETZT → IdlePose aktivieren (zurück nach rechts!)
-                toIdlePose = true;
-                toIdleStart = performance.now();
-                STATE = "idle";
-              }
-            }, 200);
+          // 3️⃣ ANTWORT FERTIG → jetzt erst zurück nach rechts!
+          const waitUntilDone = setInterval(() => {
+            if (!talking && !rising) {
+              clearInterval(waitUntilDone);
+              resetMovements();
+              greeted = false;
+              STATE = "idle";
 
-          })
-          .catch(() => {
-            resetMovements();
-            STATE = "idle";
-          });
-      }, delay);
+              // ⭐ TRIGGER → block 4 aktiviert RECHTS-NEIGUNG!
+              toIdlePose = true;
+              toIdleStart = performance.now();
+            }
+          }, 200);
+        })
+        .catch(() => {
+          resetMovements();
+          STATE = "idle";
+        });
+
+      }, MIN_HMMM);
 
     } else {
       resetMovements();
       STATE = "idle";
     }
+  };
+}
    /* -----------------------------
    BUTTON – GREET & LISTEN
 ----------------------------- */
 document.getElementById("micBtn").onclick = () => {
 
-  // 👉 1. ERSTE BETÄTIGUNG → BEGRÜSSUNG
+  // Erste Betätigung → Begrüßung
   if (!greeted) {
     resetMovements();
     greeted = true;
     STATE = "greet";
 
-    frontalFix = false;        // jetzt darf avater frontal werden
-    rising = true;             // animate() erkennt rising → frontal
+    frontalFix = false;               // ab jetzt Bewegung erlaubt
+    rising = true;
     riseStartTime = performance.now();
 
     speak(
@@ -324,7 +322,7 @@ document.getElementById("micBtn").onclick = () => {
     return;
   }
 
-  // 👉 2. SPÄTERE BETÄTIGUNG → SPRACHERKENNUNG STARTEN
+  // Spätere Betätigung → Spracherkennung starten
   if (!recognition) {
     alert("Spracherkennung wird nicht unterstützt.");
     return;
@@ -334,7 +332,7 @@ document.getElementById("micBtn").onclick = () => {
   lastTranscript = "";
   STATE = "listen";
   recognition.start();
-}; 
+};
 /* -----------------------------
    MÄNNLICHE STIMME SUCHEN
 ----------------------------- */
