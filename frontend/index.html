@@ -227,12 +227,18 @@ else if (STATE === "idle" && !talking && !rising) {
   model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
 }
 
-// ⭐ LEICHTER BLICKWECHSEL – IMMER AKTIV
-const eyeMoveZ = Math.sin(now * 0.0012) * 0.12;
-const eyeMoveX = Math.sin(now * 0.0008) * 0.02;
-model.rotation.z = THREE.MathUtils.lerp(model.rotation.z, eyeMoveZ, 0.03);
-model.rotation.x += eyeMoveX * 0.002;
+// ⭐ LEICHTER BLICKWECHSEL – IMMER AKTIV (egal welcher Zustand)
+const eyeMoveZ = Math.sin(now * 0.0009) * 0.15;   // sichtbarer seitlicher Blick
+const eyeMoveX = Math.sin(now * 0.0006) * 0.01;   // ganz sanftes Denknicken
 
+// Seitliche Kopfdrehung (Z-Achse) – sichtbar, aber nicht zu viel
+model.rotation.z = THREE.MathUtils.lerp(model.rotation.z, eyeMoveZ, 0.025);
+
+// KEIN += MEHR! → statt „addieren“ sanft RICHTUNG basis + Variation
+model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX + eyeMoveX, 0.015);
+
+renderer.render(scene, camera);
+}
 renderer.render(scene, camera);
 }  // ← **SEHR WICHTIG**
   
