@@ -73,7 +73,7 @@
 
 <script>
 /* -----------------------------
-   STATE MACHINE (mit Sicherheitslayer)
+   STATE-VARIABLEN + SICHERHEIT
 ----------------------------- */
 
 // === Hauptzustände ===
@@ -82,29 +82,24 @@ let lastTranscript = "";
 let talking = false, greeted = false;
 
 // === Bewegungszustände ===
-let frontalFix = true;        // ⭐ nach Laden: noch nicht frontal ausrichten
+let frontalFix = true;              // nach Laden: noch nicht frontal
 let hmNeigen = false, hmStartTime = 0;
-let rising = false, riseStartTime = 0;
+let rising   = false, riseStartTime = 0;
 
-// ⭐ FEHLTEN – brauchen wir für Rückkehr nach rechts!
-let toIdlePose = false, toIdleStart = 0;
-const toIdleDuration = 1500;  // Rückkehrzeit (kannst du anpassen)
+// === Animationszeiten (ms) ===
+const hmDuration   = 10000;         // "Hmmm..." sehr langsam
+const riseDuration = 1200;          // Begrüßung / Antwort → frontal
 
-// === Animationszeiten ===
-const hmDuration = 10000;     // “Hmmm…” sehr langsam
-const riseDuration = 1200;    // “Antwort / Begrüßung → frontal”
-
-// === Grund-Positionen Avatar ===
-let baseRotY = -0.35;         // Start leicht schräg nach rechts
+// === Grund-Position Avatar ===
+let baseRotY = -0.35;               // Start leicht nach rechts geneigt
 let baseRotX = 0.25;
 let baseY = 0;
 
-// 🛡️  Sicherheitslayer – verhindert doppelte Animationen
+// 🛡️  Sicherheitslayer – niemals gleichzeitig mehrere Bewegungen
 function resetMovements() {
   hmNeigen = false;
-  rising = false;
-  talking = false;
-  // ❗ toIdlePose NICHT hier zurücksetzen – der braucht Zeit zum auslaufen!
+  rising   = false;
+  talking  = false;
 }
 
 /* -----------------------------
@@ -161,7 +156,7 @@ loader.load("./avatar.glb", gltf => {
   animate();
 });
 /* -----------------------------
-   ANIMATE LOOP – KORRIGIERT
+   ANIMATE LOOP – SAUBER & EINFACH
 ----------------------------- */
 function animate() {
   requestAnimationFrame(animate);
@@ -169,16 +164,15 @@ function animate() {
 
   const now = performance.now();
 
-  // Blickrichtungen
-  const frontalY = -Math.PI / 2;              // frontal zur Kamera
-  const rightY   = baseRotY - Math.PI / 2;    // deine Ausgangsposition (leicht nach rechts)
-  const leftY    = frontalY + 0.25;           // leicht nach links relativ zu frontal
+  const frontalY = -Math.PI / 2;                 // frontal zur Kamera
+  const rightY   = baseRotY - Math.PI / 2;       // Startpose: leicht nach rechts
+  const leftY    = frontalY + 0.25;              // "Hmmm": leicht nach links
 
-  // 0️⃣ Nach Laden → in Ruhe, Ausgangsposition (leicht nach rechts)
+  // 0️⃣ Direkt nach dem Laden → Ausgangsposition (rechts)
   if (frontalFix) {
-    // sicherstellen, dass er wirklich in der Startpose bleibt
-    model.rotation.y = rightY;
-    model.rotation.x = baseRotX;
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, rightY, 0.08);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.08);
+    model.position.y = baseY + Math.sin(now * 0.0012) * 0.006;
     renderer.render(scene, camera);
     return;
   }
@@ -191,40 +185,38 @@ function animate() {
     if (t >= 1) rising = false;
   }
 
-  // 2️⃣ HMMM-PHASE → LANGSAM NACH LINKS NEIGEN (UND DORT BLEIBEN)
+  // 2️⃣ HMMM-PHASE → LANGSAM NACH LINKS NEIGEN
   else if (hmNeigen) {
     const t = Math.min(1, (now - hmStartTime) / hmDuration);
-    // Kopf leicht nach vorne + seitlich links
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX + 0.25, t);
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, leftY, t);
   }
 
-  // 3️⃣ TALKING → frontal + leichtes Atmen
+  // 3️⃣ TALKING → frontal + Atmen während Begrüßung / Antwort
   else if (talking) {
     model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.03);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
   }
 
-  // 4️⃣ NACH DER ANTWORT → ZURÜCK IN AUSGANGSPOSITION (leicht nach rechts)
-  else if (toIdlePose) {
-    const t = Math.min(1, (now - toIdleStart) / toIdleDuration);
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, rightY, 0.05);
-    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.05);
-    if (t >= 1) toIdlePose = false;
+  // 4️⃣ WARTEN AUF FRAGE (STATE = "listen") → FRONTAL + Atmen
+  else if (STATE === "listen" || STATE === "greet" || STATE === "answer") {
+    model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.03);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
   }
 
-  // 5️⃣ IDLE → leicht nach rechts geneigt + sanftes Atmen
+  // 5️⃣ ECHTES IDLE (nach Antwort, wenn greeted = false) → zurück nach rechts
   else {
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, rightY, 0.02);
-    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.02);
     model.position.y = baseY + Math.sin(now * 0.0012) * 0.006;
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, rightY, 0.03);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
   }
 
   renderer.render(scene, camera);
 }
 /* -----------------------------
-   STATE MACHINE – FINAL VERSION
+   STATE MACHINE – LOGIK
 ----------------------------- */
 
 let recognition;
@@ -240,51 +232,40 @@ if ("webkitSpeechRecognition" in window) {
   recognition.onend = () => {
     if (STATE === "listen" && lastTranscript) {
 
-      // === 2. HMMM-PHASE → LANGSAM LINKS NEIGEN ===
+      // 2️⃣ HMMM-PHASE → Kopf langsam nach links
       resetMovements();
       STATE = "hmmm";
       hmNeigen = true;
       hmStartTime = performance.now();
       speak("Hmmmm... einen Moment", true);
 
-      // ⏳ MINDESTENS 3000 ms Hmmm aktiv halten
-      const minHmmmTime = 3000;
-      const delta = performance.now() - hmStartTime;
-      const delay = Math.max(0, minHmmmTime - delta);
-
-      setTimeout(() => {
-        fetch("/ask", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: lastTranscript })
-        })
+      fetch("/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: lastTranscript })
+      })
         .then(r => r.json())
         .then(data => {
 
-          // === 3. ANTWORT BEGINNT → FRONTAL ===
+          // 3️⃣ ANTWORT BEGINNT → zurück auf frontal
           resetMovements();
           STATE = "answer";
-          frontalFix = false;
+          frontalFix = false;           // sicherstellen, dass Bewegung erlaubt ist
           rising = true;
           riseStartTime = performance.now();
           speak(data.answer);
 
-          // ⭐ NACH DER ANTWORT → ZURÜCK IN NEIGUNG (rechts) ===
+          // nach der Antwort → in echtes Idle (zurück nach rechts)
           setTimeout(() => {
             resetMovements();
-            greeted = false;
-
-            toIdlePose = true;          // ⭐ erst Bewegung aktivieren
-            toIdleStart = performance.now();
-
-            STATE = "idle";             // ⭐ DANN idle setzen
+            greeted = false;            // wichtig: damit Idle = Ausgangsposition ist
+            STATE = "idle";
           }, 500);
         })
         .catch(() => {
           resetMovements();
           STATE = "idle";
         });
-      }, delay);  // setTimeout Ende
 
     } else {
       resetMovements();
@@ -293,17 +274,18 @@ if ("webkitSpeechRecognition" in window) {
   };
 }
 
+
 /* -----------------------------
    BUTTON – GREET & LISTEN
 ----------------------------- */
 document.getElementById("micBtn").onclick = () => {
-  // Erste Betätigung: Begrüßung
+  // Erste Betätigung → Begrüßung
   if (!greeted) {
     resetMovements();
     greeted = true;
     STATE = "greet";
 
-    frontalFix = false;              // ab jetzt darf er sich bewegen / frontal werden
+    frontalFix = false;               // ab jetzt darf er frontal werden
     rising = true;
     riseStartTime = performance.now();
 
@@ -314,7 +296,7 @@ document.getElementById("micBtn").onclick = () => {
     return;
   }
 
-  // Später: Aufnahme starten
+  // Spätere Betätigung → Spracherkennung starten
   if (!recognition) {
     alert("Spracherkennung wird nicht unterstützt.");
     return;
@@ -325,7 +307,6 @@ document.getElementById("micBtn").onclick = () => {
   STATE = "listen";
   recognition.start();
 };
-
 /* -----------------------------
    MÄNNLICHE STIMME SUCHEN
 ----------------------------- */
