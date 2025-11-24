@@ -158,7 +158,7 @@ loader.load("./avatar.glb", gltf => {
   animate();
 });
 /* -----------------------------
-   ANIMATE LOOP – FINAL VERSION
+   ANIMATE LOOP – FINAL & SMOOTH
 ----------------------------- */
 function animate() {
   requestAnimationFrame(animate);
@@ -166,6 +166,7 @@ function animate() {
 
   const now = performance.now();
   const frontalY = -Math.PI / 2;  // deine Frontalblickrichtung
+  const idleY = baseRotY - Math.PI / 2; // leicht nach links geneigt (Ausgangsposition)
 
   // 0️⃣ Nach Laden → AVATAR BLEIBT LEICHT SCHRÄG (frontalFix = true)
   if (frontalFix) {
@@ -185,7 +186,7 @@ function animate() {
   else if (hmNeigen) {
     const t = Math.min(1, (now - hmStartTime) / hmDuration);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX + 0.25, t);
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY + 0.35, t);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, idleY, t);
   }
 
   // 3️⃣ TALKING → frontal + leichtes Atmen
@@ -195,24 +196,26 @@ function animate() {
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.02);
   }
 
-  // 4️⃣ NACH DER ANTWORT → zur Ausgangs-Neigung zurück!
+  // 4️⃣ NACH DER ANTWORT → sanft zurück in Ausgangs-Neigung
   else if (toIdlePose) {
     const t = (now - toIdleStart) / toIdleDuration;
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY - Math.PI / 2, 0.03);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, idleY, 0.03);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
     if (t >= 1) toIdlePose = false; // Bewegung abgeschlossen
   }
 
-  // 5️⃣ IDLE → leicht schräg + sanft atmen
+  // 5️⃣ IDLE → leicht links geneigt + sanft atmen (SMOOTHER!)
   else {
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.02);
+    // sanfte Rotation Richtung idle-Haltung
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, idleY, 0.015);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.02);
-    model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
+
+    // noch sanftere Atmung in Idle
+    model.position.y = baseY + Math.sin(now * 0.0012) * 0.006;
   }
 
   renderer.render(scene, camera);
 }
-
 /* -----------------------------
    STATE MACHINE – FINAL VERSION
 ----------------------------- */
