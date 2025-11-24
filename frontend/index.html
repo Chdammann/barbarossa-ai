@@ -89,11 +89,11 @@ let rising = false;
 let riseStartTime = 0;
 
 // === Animationszeiten ===
-const hmDuration = 10000;      // Hmmm langsam
+const hmDuration = 10000;     // Hmmm sehr langsam
 const riseDuration = 1200;    // Begrüßung / Antwort → frontal drehen
 
 // === Grund-Positionen Avatar ===
-let baseRotY = -0.35;         // Start leicht schräg
+let baseRotY = -0.35;         // Start leicht schräg nach links
 let baseRotX = 0.25;
 let baseY = 0;
 
@@ -102,7 +102,7 @@ function resetMovements() {
   hmNeigen = false;
   rising = false;
   talking = false;
-}Y = 0;
+}
 
 /* -----------------------------
    THREE.js SETUP
@@ -158,59 +158,56 @@ loader.load("./avatar.glb", gltf => {
   animate();
 });
 /* -----------------------------
-   ANIMATE LOOP – FINAL & SMOOTH
+   ANIMATE LOOP – FINAL & FIXED
 ----------------------------- */
 function animate() {
   requestAnimationFrame(animate);
   if (!model) return;
 
   const now = performance.now();
-  const frontalY = -Math.PI / 2;  // deine Frontalblickrichtung
-  const idleY = baseRotY - Math.PI / 2; // leicht nach links geneigt (Ausgangsposition)
+  const frontalY = -Math.PI / 2;         // 0° nach vorne
+  const idleY    = frontalY - 0.35;       // KLAR nach links geneigt (statt aus baseRotY rechnen)
 
-  // 0️⃣ Nach Laden → AVATAR BLEIBT LEICHT SCHRÄG (frontalFix = true)
+  // 0️⃣ Nach Laden → nicht frontal
   if (frontalFix) {
     renderer.render(scene, camera);
     return;
   }
 
-  // 1️⃣ GREET / ANSWER → FRONTAL (rising aktiv)
+  // 1️⃣ GREET / ANSWER → FRONTAL
   if (rising) {
     const t = (now - riseStartTime) / riseDuration;
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.03);
-    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.06); // fix: schneller, genauer
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.06);
     if (t >= 1) rising = false;
   }
 
-  // 2️⃣ HMMM-PHASE → NUR links neigen & dort bleiben (langsam)
+  // 2️⃣ HMMM → LANGSAM LINKS (garantiert links!)
   else if (hmNeigen) {
     const t = Math.min(1, (now - hmStartTime) / hmDuration);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX + 0.25, t);
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, idleY, t);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, idleY, t); // idleY = frontalY - 0.35
   }
 
-  // 3️⃣ TALKING → frontal + leichtes Atmen
+  // 3️⃣ TALKING → frontal
   else if (talking) {
     model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.02);
-    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.02);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.03);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
   }
 
-  // 4️⃣ NACH DER ANTWORT → sanft zurück in Ausgangs-Neigung
+  // 4️⃣ NACH ANTWORT → ZURÜCK zum Start (links)
   else if (toIdlePose) {
-    const t = (now - toIdleStart) / toIdleDuration;
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, idleY, 0.03);
-    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
-    if (t >= 1) toIdlePose = false; // Bewegung abgeschlossen
+    const t = Math.min(1, (now - toIdleStart) / toIdleDuration);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, idleY, 0.05); // genauer!
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.05);
+    if (t >= 1) toIdlePose = false;
   }
 
-  // 5️⃣ IDLE → leicht links geneigt + sanft atmen (SMOOTHER!)
+  // 5️⃣ IDLE → sanftes Atmen in linker Neigung
   else {
-    // sanfte Rotation Richtung idle-Haltung
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, idleY, 0.015);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, idleY, 0.02);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.02);
-
-    // noch sanftere Atmung in Idle
     model.position.y = baseY + Math.sin(now * 0.0012) * 0.006;
   }
 
@@ -233,12 +230,12 @@ if ("webkitSpeechRecognition" in window) {
   recognition.onend = () => {
     if (STATE === "listen" && lastTranscript) {
 
-      // === 2. HMMM-PHASE → LANGSAM LINKS NEIGEN
+      // === 2. HMMM-PHASE → LANGSAM LINKS NEIGEN ===
       resetMovements();
       STATE = "hmmm";
       hmNeigen = true;
       hmStartTime = performance.now();
-      speak("Hmmmm... einen Moment", true); // langsamer gesprochen
+      speak("Hmmmm... einen Moment", true); // langsam sprechen
 
       fetch("/ask", {
         method: "POST",
@@ -248,22 +245,22 @@ if ("webkitSpeechRecognition" in window) {
         .then(r => r.json())
         .then(data => {
 
-          // === 3. ANTWORT BEGINNT → FRONTAL
+          // === 3. ANTWORT BEGINNT → FRONTAL ===
           resetMovements();
           STATE = "answer";
+          frontalFix = false;           // sicherstellen, dass Animation nicht blockiert
           rising = true;
           riseStartTime = performance.now();
           speak(data.answer);
 
-          // ⭐ NACH DER ANTWORT → ZURÜCK IN NEIGUNG
+          // ⭐ NACH DER ANTWORT → ZURÜCK IN NEIGUNG ===
           setTimeout(() => {
             resetMovements();
             greeted = false;
             STATE = "idle";
 
-            toIdlePose = true;   // ⭐ NEU → Ausgangs-Position einleiten
+            toIdlePose = true;          // Rückkehr zur Ausgangs-Neigung starten
             toIdleStart = performance.now();
-
           }, 500);
         })
         .catch(() => {
@@ -283,12 +280,13 @@ if ("webkitSpeechRecognition" in window) {
    BUTTON – GREET & LISTEN
 ----------------------------- */
 document.getElementById("micBtn").onclick = () => {
+  // Erste Betätigung: Begrüßung
   if (!greeted) {
     resetMovements();
     greeted = true;
     STATE = "greet";
 
-    frontalFix = false;          // ⭐ ERST JETZT darf er frontal werden
+    frontalFix = false;              // ab jetzt darf er sich bewegen / frontal werden
     rising = true;
     riseStartTime = performance.now();
 
@@ -299,6 +297,7 @@ document.getElementById("micBtn").onclick = () => {
     return;
   }
 
+  // Später: Aufnahme starten
   if (!recognition) {
     alert("Spracherkennung wird nicht unterstützt.");
     return;
