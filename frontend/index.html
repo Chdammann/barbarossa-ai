@@ -226,6 +226,77 @@ function animate() {
 
   renderer.render(scene, camera);
 }
+  /* -----------------------------
+   STATE MACHINE – LOGIK (FINAL)
+----------------------------- */
+
+let recognition;
+if ("webkitSpeechRecognition" in window) {
+  recognition = new webkitSpeechRecognition();
+  recognition.lang = "de-DE";
+  recognition.continuous = false;
+
+  // Ergebnis speichern:
+  recognition.onresult = e => {
+    lastTranscript = e.results[0][0].transcript;
+  };
+
+  // Aufnahme ist fertig:
+  recognition.onend = () => {
+    if (STATE === "listen" && lastTranscript) {
+
+      // 1) Hmmm – Kopf nach links (langsam)
+      resetMovements();
+      STATE = "hmmm";
+      hmNeigen = true;
+      hmStartTime = performance.now();
+      speak("Hmmmm... einen Moment", true);
+
+      // ⭐ Mindest-Hmmm-Zeit (WICHTIG)
+      const minHmmmTime = 4000; // kannst du auf 6000 setzen für noch länger
+      const tElapsed = performance.now() - hmStartTime;
+      const delay = Math.max(0, minHmmmTime - tElapsed);
+
+      // fetch erst nach Hmmm-Zeit:
+      setTimeout(() => {
+        fetch("/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: lastTranscript })
+        })
+        .then(r => r.json())
+        .then(data => {
+
+          // 2) Antwort beginnt frontal
+          resetMovements();
+          STATE = "answer";
+          rising = true;                 // animate() erkennt: FRONTAL
+          riseStartTime = performance.now();
+          speak(data.answer);
+
+          // ⭐ WICHTIG: Idle NUR wenn Antwort WIRKLICH fertig ist!
+          const checkEnd = setInterval(() => {
+            if (!talking && !rising) {
+              clearInterval(checkEnd);
+              resetMovements();
+              greeted = false;
+              STATE = "idle";           // jetzt erst Idle → Neigung nach rechts
+            }
+          }, 200);
+
+        })
+        .catch(() => {
+          resetMovements();
+          STATE = "idle";
+        });
+      }, delay);
+
+    } else {
+      resetMovements();
+      STATE = "idle";
+    }
+  };
+}
 /* -----------------------------
    MÄNNLICHE STIMME SUCHEN
 ----------------------------- */
