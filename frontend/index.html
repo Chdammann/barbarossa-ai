@@ -227,15 +227,19 @@ else if (STATE === "idle" && !talking && !rising) {
   model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
 }
 
-// ⭐ LEICHTER BLICKWECHSEL – IMMER AKTIV (egal welcher Zustand)
-const eyeMoveZ = Math.sin(now * 0.0009) * 0.15;   // sichtbarer seitlicher Blick
-const eyeMoveX = Math.sin(now * 0.0006) * 0.01;   // ganz sanftes Denknicken
+// ⭐ Subtiler natürlicher Mikro-Drift – IMMER AKTIV
+const headDriftZ = Math.sin(now * 0.0005) * 0.10;     // merkbar aber ruhig
+const headDriftX = Math.sin(now * 0.0003) * 0.005;    // NICHT sichtbar überschwingend
 
-// Seitliche Kopfdrehung (Z-Achse) – sichtbar, aber nicht zu viel
-model.rotation.z = THREE.MathUtils.lerp(model.rotation.z, eyeMoveZ, 0.025);
+// Z-Achse → sichtbarer seitlicher Blick (WICHTIG: State überschreibt das NICHT!)
+model.rotation.z = THREE.MathUtils.lerp(model.rotation.z, headDriftZ, 0.015);
 
-// KEIN += MEHR! → statt „addieren“ sanft RICHTUNG basis + Variation
-model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX + eyeMoveX, 0.015);
+// X-Achse → nur umliegende Mikrobewegung, NEAR baseRotX
+model.rotation.x = THREE.MathUtils.lerp(
+  model.rotation.x,
+  baseRotX + headDriftX,
+  0.008  // GANZ langsam!
+);
 
 renderer.render(scene, camera);
 }
