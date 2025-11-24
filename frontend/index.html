@@ -231,13 +231,6 @@ else if (STATE === "idle" && !talking && !rising) {
 const testZ = Math.sin(now * 0.002) * 0.30;   // deutlich sichtbar
 model.rotation.z = testZ; // DIREKT setzen – keine LERP!
 
-// X-Achse → nur umliegende Mikrobewegung, NEAR baseRotX
-model.rotation.x = THREE.MathUtils.lerp(
-  model.rotation.x,
-  baseRotX + headDriftX,
-  0.008  // GANZ langsam!
-);
-
 renderer.render(scene, camera);
 }
   
