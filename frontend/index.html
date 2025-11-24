@@ -73,21 +73,36 @@
 
 <script>
 /* -----------------------------
-   STATE MACHINE
+   STATE MACHINE (mit Sicherheitslayer)
 ----------------------------- */
+
+// === Hauptzustände ===
 let model, STATE = "idle";
 let lastTranscript = "";
 let talking = false, greeted = false;
 
-let hmNeigen = false, hmStartTime = 0;
-let rising = false, riseStartTime = 0;
+// === Bewegungszustände ===
+let frontalFix = true;        // ⭐ nach Laden: NOCH NICHT frontal ausrichten
+let hmNeigen = false;
+let hmStartTime = 0;
+let rising = false;
+let riseStartTime = 0;
 
-const hmDuration = 5000;
-const riseDuration = 1200;
+// === Animationszeiten ===
+const hmDuration = 5000;      // Hmmm langsam
+const riseDuration = 1200;    // Begrüßung / Antwort → frontal drehen
 
-let baseRotY = -0.35;
+// === Grund-Positionen Avatar ===
+let baseRotY = -0.35;         // Start leicht schräg
 let baseRotX = 0.25;
 let baseY = 0;
+
+// 🛡️  Sicherheitslayer – verhindert doppelte Animationen
+function resetMovements() {
+  hmNeigen = false;
+  rising = false;
+  talking = false;
+}Y = 0;
 
 /* -----------------------------
    THREE.js SETUP
@@ -142,43 +157,45 @@ loader.load("./avatar.glb", gltf => {
   document.getElementById("loading").style.display = "none";
   animate();
 });
-
 /* -----------------------------
-   ANIMATE LOOP
+   ANIMATE LOOP – FINAL VERSION
 ----------------------------- */
 function animate() {
   requestAnimationFrame(animate);
   if (!model) return;
 
   const now = performance.now();
-  const frontalY = -Math.PI / 2; // in deinem Setup ist das "frontal"
+  const frontalY = -Math.PI / 2;  // deine Frontblickrichtung
 
-  // === 3. BEIM ANTWORTEN → ZURÜCK AUF FRONTAL ===
+  // 0️⃣  NACH LADEN → NICHT FRONTAL
+  if (frontalFix) {
+    renderer.render(scene, camera);
+    return;
+  }
+
+  // 1️⃣ GREET / ANSWER → FRONTAL (rising aktiv)
   if (rising) {
     const t = (now - riseStartTime) / riseDuration;
-    // Ziel: frontal schauen
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.03);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
     if (t >= 1) rising = false;
   }
 
-  // === 2. "Hmmmm..." → LANGSAM NACH LINKS NEIGEN (UND DORT BLEIBEN) ===
+  // 2️⃣ HMMM-PHASE → NUR links neigen & bleiben
   else if (hmNeigen) {
     const t = Math.min(1, (now - hmStartTime) / hmDuration);
-    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, t);
-    // leicht nach links relativ zur Frontalposition
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY + 0.25, t);
-    if (t >= 1) hmNeigen = false;
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX + 0.25, t);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY + 0.35, t);
   }
 
-  // === TALKING → leichtes Atmen, frontal ===
+  // 3️⃣ TALKING → frontal + leichtes Atmen
   else if (talking) {
     model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.02);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.02);
   }
 
-  // === IDLE → FRONTAL BLEIBEN MIT ATEMBEWEGUNG ===
+  // 4️⃣ IDLE → sanftes Atmen, leicht schräg
   else {
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.02);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.02);
@@ -189,7 +206,7 @@ function animate() {
 }
 
 /* -----------------------------
-   SPEECH RECOGNITION
+   SPEECH RECOGNITION – STATE MACHINE
 ----------------------------- */
 let recognition;
 if ("webkitSpeechRecognition" in window) {
@@ -203,10 +220,15 @@ if ("webkitSpeechRecognition" in window) {
 
   recognition.onend = () => {
     if (STATE === "listen" && lastTranscript) {
+      
+      // === 2. HMMMM-PHASE → NUR links neigen & bleiben
+      resetMovements();                 // 🛡️ Sicherheitslayer
       STATE = "hmmm";
       hmNeigen = true;
       hmStartTime = performance.now();
-      speak("Hmmmm... einen Moment", true, 0.6);
+
+      speak("Hmmmm... einen Moment", true);  // langsam sprechen
+
 
       fetch("/ask", {
         method: "POST",
@@ -215,41 +237,63 @@ if ("webkitSpeechRecognition" in window) {
       })
         .then(r => r.json())
         .then(data => {
+
+          // === 3. ANTWORT BEGINNT → zurück in Frontalposition
+          resetMovements();            // 🛡️ IMMER zuerst alles deaktivieren
           STATE = "answer";
           rising = true;
           riseStartTime = performance.now();
           speak(data.answer);
+
+          // Nach Antwort → zurück zu idle
           setTimeout(() => {
             greeted = false;
             STATE = "idle";
           }, 500);
         })
         .catch(() => {
+          resetMovements();
           STATE = "idle";
-          hmNeigen = false;
         });
+
     } else {
+      resetMovements();
       STATE = "idle";
     }
   };
 }
 
+
 /* -----------------------------
-   BUTTON
+   BUTTON – ABLAUFSTART
 ----------------------------- */
 document.getElementById("micBtn").onclick = () => {
+
+  // === 1. BEGRÜSSUNG STARTET ===
   if (!greeted) {
+    resetMovements();
     greeted = true;
     STATE = "greet";
+
+    frontalFix = false;            // ⭐ erst jetzt darf Frontal aktiviert werden!
     rising = true;
     riseStartTime = performance.now();
-    speak("Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa,  nach tausend Jahren im Kaiserberg zu Lautern erwacht aus tiefem Schlummer.  Was ist Euer Begehr?", false);
+
+    speak(
+      "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, " +
+      "nach tausend Jahren im Kaiserberg erwacht. Was ist Euer Begehr?",
+      false
+    );
     return;
   }
+
+  // === LISTEN ===
   if (!recognition) {
     alert("Spracherkennung wird nicht unterstützt.");
     return;
   }
+
+  resetMovements();               // 🛡️ Sicherheitslayer
   lastTranscript = "";
   STATE = "listen";
   recognition.start();
