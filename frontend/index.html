@@ -218,14 +218,20 @@ function animate() {
   }
 
   // 6️⃣ ENDE → SANFT ZURÜCK NACH RECHTS
-  else if (toIdlePose) {
-    const t = Math.min(1, (now - toIdleStart) / toIdleDuration);
-    model.position.y = baseY + Math.sin(now * 0.0012) * 0.006;
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, rightY, t);
-    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, t);
-    if (t >= 1) toIdlePose = false;
-  }
+else if (STATE === "idle" && !talking && !rising) {
+  // ⭐ NATÜRLICHE ATMUNG – minimal variierend
+  const breathSpeed = 0.0011 + Math.sin(now * 0.00005) * 0.0003;
+  const breathAmp   = 0.006  + Math.sin(now * 0.00008) * 0.002;
+  model.position.y  = baseY + Math.sin(now * breathSpeed) * breathAmp;
 
+  // sanft zurück in Ausgangsrotation
+  model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, rightY, 0.03);
+  model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
+
+  // ⭐ LEICHTER BLICKWECHSEL – nur im Idle!
+  const eyeMove = Math.sin(now * 0.0004) * 0.05; 
+  model.rotation.z = THREE.MathUtils.lerp(model.rotation.z, eyeMove, 0.02);
+}
   renderer.render(scene, camera);
 }
 /* -----------------------------
