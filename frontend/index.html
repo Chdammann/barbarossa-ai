@@ -227,9 +227,25 @@ else if (STATE === "idle" && !talking && !rising) {
   model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
 }
 
-// ⭐ TEST: Sichtbarer Kopfdrift (NUR zum Prüfen!)
-const testZ = Math.sin(now * 0.002) * 0.30;   // deutlich sichtbar
-model.rotation.z = testZ; // DIREKT setzen – keine LERP!
+// ⭐ NATÜRLICHE Blickbewegungen – X & Y nur ganz leicht!
+const driftX = Math.sin(now * 0.0006) * 0.01;  // leichtes "Nicken"
+const driftY = Math.sin(now * 0.0004) * 0.008; // seitliches "Denken"
+
+// X-Achse → NICHT addieren – nur sanfter Drift RICHTUNG basis
+model.rotation.x = THREE.MathUtils.lerp(
+  model.rotation.x,
+  baseRotX + driftX,
+  0.01
+);
+
+// Y-Achse → nur wenn NICHT hmNeigen / rising aktiv
+if (!hmNeigen && !rising) {
+  model.rotation.y = THREE.MathUtils.lerp(
+    model.rotation.y,
+    model.rotation.y + driftY,
+    0.008
+  );
+}
 
 renderer.render(scene, camera);
 }
