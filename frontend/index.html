@@ -227,12 +227,9 @@ else if (STATE === "idle" && !talking && !rising) {
   model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
 }
 
-// ⭐ Subtiler natürlicher Mikro-Drift – IMMER AKTIV
-const headDriftZ = Math.sin(now * 0.0005) * 0.10;     // merkbar aber ruhig
-const headDriftX = Math.sin(now * 0.0003) * 0.005;    // NICHT sichtbar überschwingend
-
-// Z-Achse → sichtbarer seitlicher Blick (WICHTIG: State überschreibt das NICHT!)
-model.rotation.z = THREE.MathUtils.lerp(model.rotation.z, headDriftZ, 0.015);
+// ⭐ TEST: Sichtbarer Kopfdrift (NUR zum Prüfen!)
+const testZ = Math.sin(now * 0.002) * 0.30;   // deutlich sichtbar
+model.rotation.z = testZ; // DIREKT setzen – keine LERP!
 
 // X-Achse → nur umliegende Mikrobewegung, NEAR baseRotX
 model.rotation.x = THREE.MathUtils.lerp(
