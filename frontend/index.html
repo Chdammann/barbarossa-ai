@@ -207,11 +207,12 @@ function animate() {
   }
 
   // 5️⃣ ECHTES IDLE (nach Antwort, wenn greeted = false) → zurück nach rechts
-  else {
+// 5️⃣ ECHTES IDLE NUR dann, wenn KEINE Antwort mehr gesprochen wird!
+else if (STATE === "idle" && !talking) {
     model.position.y = baseY + Math.sin(now * 0.0012) * 0.006;
     model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, rightY, 0.03);
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
-  }
+}
 
   renderer.render(scene, camera);
 }
