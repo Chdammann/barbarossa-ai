@@ -228,9 +228,11 @@ else if (STATE === "idle" && !talking && !rising) {
   model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, rightY, 0.03);
   model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
 
-  // ⭐ LEICHTER BLICKWECHSEL – nur im Idle!
-  const eyeMove = Math.sin(now * 0.0004) * 0.08; 
-  model.rotation.z = THREE.MathUtils.lerp(model.rotation.z, eyeMove, 0.02);
+  // ⭐ LEICHTER BLICKWECHSEL – IMMER AKTIV (egal welcher Zustand)
+const eyeMove = Math.sin(now * 0.0004) * 0.08;
+model.rotation.z = THREE.MathUtils.lerp(model.rotation.z, eyeMove, 0.02);
+
+renderer.render(scene, camera);
 }
   renderer.render(scene, camera);
 }
