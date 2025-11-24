@@ -302,6 +302,39 @@ if ("webkitSpeechRecognition" in window) {
       resetMovements();
       STATE = "idle";
     }
+   /* -----------------------------
+   BUTTON – GREET & LISTEN
+----------------------------- */
+document.getElementById("micBtn").onclick = () => {
+
+  // 👉 1. ERSTE BETÄTIGUNG → BEGRÜSSUNG
+  if (!greeted) {
+    resetMovements();
+    greeted = true;
+    STATE = "greet";
+
+    frontalFix = false;        // jetzt darf avater frontal werden
+    rising = true;             // animate() erkennt rising → frontal
+    riseStartTime = performance.now();
+
+    speak(
+      "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg erwacht. Was ist Euer Begehr?",
+      false
+    );
+    return;
+  }
+
+  // 👉 2. SPÄTERE BETÄTIGUNG → SPRACHERKENNUNG STARTEN
+  if (!recognition) {
+    alert("Spracherkennung wird nicht unterstützt.");
+    return;
+  }
+
+  resetMovements();
+  lastTranscript = "";
+  STATE = "listen";
+  recognition.start();
+}; 
 /* -----------------------------
    MÄNNLICHE STIMME SUCHEN
 ----------------------------- */
