@@ -274,7 +274,7 @@ if ("webkitSpeechRecognition" in window) {
       STATE = "hmmm";
       hmNeigen = true;
       hmStartTime = performance.now();
-      speak("Hmmmm... einen Moment", true);
+      speak("Hmmmmmmmm..... einen Moment", true);
 
       // Mindestwartezeit einhalten:
       const MIN_HMMM = 4000;
@@ -338,7 +338,7 @@ document.getElementById("micBtn").onclick = () => {
     riseStartTime = performance.now();
 
     speak(
-      "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach tausend Jahren im Kaiserberg erwacht. Was ist Euer Begehr?",
+      "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach fast neunhundert Jahren im Kaiserberg erwacht. Was ist Euer Begehr?",
       false
     );
     return;
@@ -375,7 +375,7 @@ speechSynthesis.onvoiceschanged = setMaleVoice;
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
-  u.rate = slow ? 0.5 : 0.95;
+  u.rate = slow ? 0.4 : 0.95;
 
   if (maleVoice) u.voice = maleVoice;   // <-- HIER WIRD STIMME GESETZT
 
