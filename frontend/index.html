@@ -473,10 +473,19 @@ function speak(text, slow = false) {
   u.lang = "de-DE";
   u.rate = slow ? 0.4 : 0.95;
 
-  if (maleVoice) u.voice = maleVoice;   // <-- HIER WIRD STIMME GESETZT
+  if (maleVoice) u.voice = maleVoice;
 
   u.onstart = () => talking = true;
-  u.onend = () => talking = false;
+
+  u.onend = () => {
+    talking = false;
+
+    // 👉 HIER EINFÜGEN!
+    if (STATE === "greet") {
+      STATE = "idle";
+    }
+  };
+
   speechSynthesis.speak(u);
 }
 
