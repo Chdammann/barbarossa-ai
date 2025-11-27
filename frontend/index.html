@@ -59,6 +59,13 @@
     font-size:1.1em;
     text-align:center;
   }
+  #micBtn.listening {
+  background-color: #e0b36b;  /* Gold */
+}
+
+#micBtn.idle {
+  background-color: grey;     /* Grau */
+}
 </style>
 </head>
 
@@ -322,18 +329,27 @@ if ("webkitSpeechRecognition" in window) {
     }
   };
 }
-   /* -----------------------------
-   BUTTON – GREET & LISTEN
------------------------------ */
-document.getElementById("micBtn").onclick = () => {
+   /* --------------------------------------------------
+   GLOBALER KLICK – GREET & LISTEN/STOP
+-------------------------------------------------- */
+const micBtn = document.getElementById("micBtn");
 
-  // Erste Betätigung → Begrüßung
+// Button nicht als Klickziel verwenden:
+micBtn.onclick = (e) => {
+  e.stopPropagation();
+};
+
+// Klick überall auf Bildschirm:
+document.body.onclick = () => {
+
+  // 1️⃣ ERSTER KLICK → Begrüßung
   if (!greeted) {
     resetMovements();
     greeted = true;
     STATE = "greet";
 
-    frontalFix = false;               // ab jetzt Bewegung erlaubt
+    micBtn.classList.add("listening");
+
     rising = true;
     riseStartTime = performance.now();
 
@@ -341,19 +357,37 @@ document.getElementById("micBtn").onclick = () => {
       "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach fast neunhundert Jahren im Kaiserberg erwacht. Was ist Euer Begehr?",
       false
     );
+
+    // Button wieder zurück zu grau
+    setTimeout(() => micBtn.classList.remove("listening"), 1200);
     return;
   }
 
-  // Spätere Betätigung → Spracherkennung starten
-  if (!recognition) {
-    alert("Spracherkennung wird nicht unterstützt.");
+  // 2️⃣ ZWEITER KLICK → Aufnahme START
+  if (STATE !== "listen") {
+    if (!recognition) {
+      alert("Spracherkennung wird nicht unterstützt.");
+      return;
+    }
+
+    resetMovements();
+    lastTranscript = "";
+    STATE = "listen";
+    recognition.start();
+
+    micBtn.classList.add("listening");
+    micBtn.classList.remove("idle");
     return;
   }
 
-  resetMovements();
-  lastTranscript = "";
-  STATE = "listen";
-  recognition.start();
+  // 3️⃣ DRITTER KLICK → Aufnahme STOP
+  if (STATE === "listen") {
+    recognition.stop();
+    STATE = "answer";
+
+    micBtn.classList.remove("listening");
+    micBtn.classList.add("idle");
+  }
 };
 /* -----------------------------
    MÄNNLICHE STIMME SUCHEN
