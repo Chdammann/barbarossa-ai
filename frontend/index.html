@@ -389,6 +389,24 @@ document.body.onclick = () => {
     micBtn.classList.add("idle");
   }
 };
+/* --------------------------------------------------
+   ERGÄNZUNG – wenn Aufnahme endet → Antwort starten!
+-------------------------------------------------- */
+if (recognition) {
+  recognition.onend = () => {
+    if (STATE === "answer") {
+      
+      console.log("Antwortphase gestartet, transcript:", lastTranscript);
+
+      speak(lastTranscript);    // KI-Antwort starten
+      talking = true;           // aktiviert die Bewegungsanimation!
+    }
+  };
+
+  recognition.onresult = (e) => {
+    lastTranscript = e.results[0][0].transcript;
+  };
+}
 /* -----------------------------
    MÄNNLICHE STIMME SUCHEN
 ----------------------------- */
