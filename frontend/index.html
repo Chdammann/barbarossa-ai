@@ -354,7 +354,7 @@ document.body.onclick = () => {
     riseStartTime = performance.now();
 
     speak(
-      "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach fast neunhundert Jahren im Kaiserberg erwacht. Was ist Euer Begehr?",
+      "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach fast neunhundert Jahren im Kaiserberg zu Lautern erwacht. Was ist Euer Begehr?",
       false
     );
 
@@ -480,15 +480,15 @@ function speak(text, slow = false) {
   u.onend = () => {
     talking = false;
 
-    // 👉 HIER EINFÜGEN!
+    // 🩺 WICHTIGER FIX – NACH BEGRÜSSUNG BEWEGUNG FREIGEBEN!
     if (STATE === "greet") {
       STATE = "idle";
+      frontalFix = false;   // ← das fehlte!
     }
   };
 
   speechSynthesis.speak(u);
 }
-
 /* -----------------------------
    RESIZE
 ----------------------------- */
