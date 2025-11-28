@@ -59,13 +59,6 @@
     font-size:1.1em;
     text-align:center;
   }
-  #micBtn.listening {
-  background-color: #e0b36b;  /* Gold */
-}
-
-#micBtn.idle {
-  background-color: grey;     /* Grau */
-}
 </style>
 </head>
 
@@ -329,42 +322,29 @@ if ("webkitSpeechRecognition" in window) {
     }
   };
 }
-   /* --------------------------------------------------
-   GLOBALER KLICK – GREET & LISTEN/STOP
--------------------------------------------------- */
-const micBtn = document.getElementById("micBtn");
+   /* -----------------------------
+   BUTTON – GREET & LISTEN
+----------------------------- */
+document.getElementById("micBtn").onclick = () => {
 
-// Button nicht als Klickziel verwenden:
-micBtn.onclick = (e) => {
-  e.stopPropagation();
-};
-
-// Klick überall auf Bildschirm:
-document.body.onclick = () => {
-
-  // 1️⃣ ERSTER KLICK → Begrüßung
+  // Erste Betätigung → Begrüßung
   if (!greeted) {
     resetMovements();
     greeted = true;
     STATE = "greet";
 
-    micBtn.classList.add("listening");
-
+    frontalFix = false;               // ab jetzt Bewegung erlaubt
     rising = true;
     riseStartTime = performance.now();
 
     speak(
-      "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach fast neunhundert Jahren im Kaiserberg zu Lautern erwacht. Was ist Euer Begehr?",
+      "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach fast neunhundert Jahren im Kaiserberg erwacht. Was ist Euer Begehr?",
       false
     );
-
-    // Button wieder zurück zu grau
-    setTimeout(() => micBtn.classList.remove("listening"), 1200);
     return;
   }
 
-  // 2️⃣ ZWEITER KLICK → Aufnahme START
-if (STATE === "idle") {
+  // Spätere Betätigung → Spracherkennung starten
   if (!recognition) {
     alert("Spracherkennung wird nicht unterstützt.");
     return;
@@ -374,21 +354,7 @@ if (STATE === "idle") {
   lastTranscript = "";
   STATE = "listen";
   recognition.start();
-
-  micBtn.classList.add("listening");
-  micBtn.classList.remove("idle");
-  return;
-}
-  // 3️⃣ DRITTER KLICK → Aufnahme STOP
-  if (STATE === "listen") {
-    recognition.stop();
-    STATE = "answer";
-
-    micBtn.classList.remove("listening");
-    micBtn.classList.add("idle");
-  }
 };
-
 /* -----------------------------
    MÄNNLICHE STIMME SUCHEN
 ----------------------------- */
@@ -411,22 +377,13 @@ function speak(text, slow = false) {
   u.lang = "de-DE";
   u.rate = slow ? 0.4 : 0.95;
 
-  if (maleVoice) u.voice = maleVoice;
+  if (maleVoice) u.voice = maleVoice;   // <-- HIER WIRD STIMME GESETZT
 
   u.onstart = () => talking = true;
-
-  u.onend = () => {
-    talking = false;
-
-    // 🩺 WICHTIGER FIX – NACH BEGRÜSSUNG BEWEGUNG FREIGEBEN!
-    if (STATE === "greet") {
-      STATE = "idle";
-      frontalFix = false;   // ← das fehlte!
-    }
-  };
-
+  u.onend = () => talking = false;
   speechSynthesis.speak(u);
 }
+
 /* -----------------------------
    RESIZE
 ----------------------------- */
