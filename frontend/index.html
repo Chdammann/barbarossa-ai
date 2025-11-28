@@ -364,7 +364,7 @@ document.body.onclick = () => {
   }
 
   // 2️⃣ ZWEITER KLICK → Aufnahme START
-  if (STATE !== "listen") {
+  if (STATE !== "idle") {
     if (!recognition) {
       alert("Spracherkennung wird nicht unterstützt.");
       return;
@@ -389,68 +389,7 @@ document.body.onclick = () => {
     micBtn.classList.add("idle");
   }
 };
-/* --------------------------------------------------
-   NUR EIN EINZIGER END-HANDLER – KOMBINIERTE VERSION
--------------------------------------------------- */
-if (recognition) {
-  recognition.onend = () => {
 
-    // ⬤ SPRECHEN BEENDET – WIR HATTEN EINE FRAGE
-    if (STATE === "listen" && lastTranscript) {
-      resetMovements();
-      STATE = "hmmm";
-      hmNeigen = true;
-      hmStartTime = performance.now();
-      speak("Hmmmmmmmm..... einen Moment", true);
-
-      const MIN_HMMM = 4000;
-      setTimeout(() => {
-        fetch("/ask", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: lastTranscript })
-        })
-        .then(r => r.json())
-        .then(data => {
-
-          // ANTWORT BEGINNT → FRONTAL
-          resetMovements();
-          STATE = "answer";
-          rising = true;
-          riseStartTime = performance.now();
-          speak(data.answer);
-
-          // 🔹 das aus dem gelöschten Block → TALKING aktivieren
-          talking = true;
-
-          const waitUntilDone = setInterval(() => {
-            if (!talking && !rising) {
-              clearInterval(waitUntilDone);
-              resetMovements();
-              greeted = false;
-              STATE = "idle";
-            }
-          }, 200);
-        })
-        .catch(() => {
-          resetMovements();
-          STATE = "idle";
-        });
-      }, MIN_HMMM);
-    }
-
-    // ⬤ KEIN ERKENNEN / ABBRUCH → idle
-    else if (STATE !== "answer") {
-      resetMovements();
-      STATE = "idle";
-    }
-
-  };
-
-  recognition.onresult = (e) => {
-    lastTranscript = e.results[0][0].transcript;
-  };
-}
 /* -----------------------------
    MÄNNLICHE STIMME SUCHEN
 ----------------------------- */
