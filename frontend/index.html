@@ -338,7 +338,7 @@ document.getElementById("micBtn").onclick = () => {
     riseStartTime = performance.now();
 
     speak(
-      "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach fast neunhundert Jahren im Kaiserberg erwacht. Was ist Euer Begehr?",
+      "Seid gegrüßt, mein Freund. Ich bin Friedrich Barbarossa, nach fast neunhundert Jahren im Kaiserberg zu Lautern erwacht. Was ist Euer Begehr?",
       false
     );
     return;
@@ -370,19 +370,44 @@ function setMaleVoice() {
 speechSynthesis.onvoiceschanged = setMaleVoice;
 
 /* -----------------------------
-   SPEAK FUNCTION
+   1) MÄNNLICHE STIMME FEST SETZEN  (GLOBAL!)
+----------------------------- */
+let maleVoice = null;
+
+function setMaleVoice() {
+  const voices = speechSynthesis.getVoices();
+
+  if (!voices.length) {
+    setTimeout(setMaleVoice, 150);
+    return;
+  }
+
+  maleVoice = voices.find(v => v.name === "Microsoft Stefan - German (Germany)");
+  console.log("Ausgewählte Stimme:", maleVoice);
+}
+
+speechSynthesis.onvoiceschanged = setMaleVoice;
+setMaleVoice();
+
+
+/* -----------------------------
+   2) SPEAK FUNCTION   (NUTZT maleVoice)
 ----------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
   u.rate = slow ? 0.4 : 0.95;
 
-  if (maleVoice) u.voice = maleVoice;   // <-- HIER WIRD STIMME GESETZT
+  // 💡 männliche Stimme nur verwenden, wenn vorhanden:
+  if (maleVoice) {
+    u.voice = maleVoice;
+  }
 
   u.onstart = () => talking = true;
-  u.onend = () => talking = false;
+  u.onend  = () => talking = false;
   speechSynthesis.speak(u);
 }
+
 
 /* -----------------------------
    RESIZE
