@@ -355,19 +355,6 @@ document.getElementById("micBtn").onclick = () => {
   STATE = "listen";
   recognition.start();
 };
-/* -----------------------------
-   MÄNNLICHE STIMME SUCHEN
------------------------------ */
-let maleVoice = null;
-
-function setMaleVoice() {
-  const voices = speechSynthesis.getVoices();
-  maleVoice = voices.find(v =>
-    v.lang.startsWith("de") &&
-    /(mann|male|masculin|de-DE)/i.test(v.name)
-  );
-}
-speechSynthesis.onvoiceschanged = setMaleVoice;
 
 /* -----------------------------
    1) MÄNNLICHE STIMME FEST SETZEN  (GLOBAL!)
