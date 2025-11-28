@@ -364,22 +364,21 @@ document.body.onclick = () => {
   }
 
   // 2️⃣ ZWEITER KLICK → Aufnahme START
-  if (STATE !== "idle") {
-    if (!recognition) {
-      alert("Spracherkennung wird nicht unterstützt.");
-      return;
-    }
-
-    resetMovements();
-    lastTranscript = "";
-    STATE = "listen";
-    recognition.start();
-
-    micBtn.classList.add("listening");
-    micBtn.classList.remove("idle");
+if (STATE === "idle") {
+  if (!recognition) {
+    alert("Spracherkennung wird nicht unterstützt.");
     return;
   }
 
+  resetMovements();
+  lastTranscript = "";
+  STATE = "listen";
+  recognition.start();
+
+  micBtn.classList.add("listening");
+  micBtn.classList.remove("idle");
+  return;
+}
   // 3️⃣ DRITTER KLICK → Aufnahme STOP
   if (STATE === "listen") {
     recognition.stop();
