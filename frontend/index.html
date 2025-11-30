@@ -415,15 +415,12 @@ speechSynthesis.onvoiceschanged = setMaleVoice;
 setMaleVoice();
 
 /* ---------------------------------------------
-   SPEAK FUNCTION – stabile Lipsync-Version
-   ✔ OHNE Mikrofon
-   ✔ Render.com / Handy / Museum-tauglich
+   SPEAK FUNCTION – NATÜRLICHE SIMULATION
 --------------------------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
   u.rate = slow ? 0.5 : 1.0;
-  
   if (maleVoice) u.voice = maleVoice;
 
   let lipsyncInterval = null;
@@ -431,18 +428,28 @@ function speak(text, slow = false) {
   u.onstart = () => {
     talking = true;
 
-    lipsyncInterval = setInterval(() => {
-      const t = performance.now() * 0.006;   // Sprechrhythmus
-      let open = Math.abs(Math.sin(t));      // Grundbewegung
-      
-      // leichte Variation für Natürlichkeit
-      open += Math.random() * 0.2 - 0.1;
-      open = Math.min(Math.max(open, 0), 1);  // clamp 0–1
+    let speed = slow ? 0.015 : 0.032;
+    let step = 0;
 
-      // 👉 Visemes (oder jawOpen) bewegen:
+    lipsyncInterval = setInterval(() => {
+
+      step += speed;
+
+      // 🎯 Mund bewegt sich wie bei echten Silben:
+      let open = Math.sin(step * Math.PI * 1.3);
+      open = Math.abs(open);
+
+      // kleine Variation:
+      open *= (0.75 + Math.random() * 0.25);
+
+      // Mikropausen = kurz Mund schließen
+      if (Math.random() < 0.08) open = 0;
+
+      open = Math.min(Math.max(open, 0), 1);
+
       setBlendshape(visemeAIndex, open);
       setBlendshape(visemeEIndex, open * 0.6);
-    }, 45); // ~22 FPS – ideal fürs Web
+    }, 35); // etwas schneller für mehr „Leben“
   };
 
   u.onend = () => {
@@ -455,8 +462,7 @@ function speak(text, slow = false) {
   };
 
   speechSynthesis.speak(u);
-}  // ← **DIESE KLAMMER SCHLIESST GENAU DIE SPEAK-FUNKTION**
-
+}
 
 /* -----------------------------
    RESIZE
