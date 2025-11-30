@@ -107,6 +107,32 @@ function resetMovements() {
   rising   = false;
   talking  = false;
 }
+  /* ====== AudioContext für SpeechSynthesis (Lipsync) ====== */
+let audioCtx, audioAnalyser, audioDataArray;
+
+function initTTSAnalyser() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  audioAnalyser = audioCtx.createAnalyser();
+  audioAnalyser.fftSize = 2048;
+  audioDataArray = new Uint8Array(audioAnalyser.frequencyBinCount);
+
+  console.log("🔊 TTS-Analyser aktiviert");
+}
+
+function getTTSVolume() {
+  if (!audioAnalyser) return 0;
+
+  audioAnalyser.getByteFrequencyData(audioDataArray);
+  let sum = 0;
+  for (let i = 0; i < audioDataArray.length; i++) sum += audioDataArray[i];
+  return sum / audioDataArray.length / 255;  // 0–1 Lautstärke
+}
+
+// 🔄 AUFRUF EINMAL beim Start
+initTTSAnalyser();
+
 /* -----------------------------
    THREE.js SETUP
 ----------------------------- */
@@ -311,7 +337,7 @@ if ("webkitSpeechRecognition" in window) {
       STATE = "hmmm";
       hmNeigen = true;
       hmStartTime = performance.now();
-      speak("Ähmmmmmmmmm..... einen Moment", true);
+      speak("Äämmmmmmmmm..... einen Moment", true);
 
       // Mindestwartezeit einhalten:
       const MIN_HMMM = 4000;
@@ -414,31 +440,52 @@ speechSynthesis.onvoiceschanged = setMaleVoice;
 setMaleVoice();
 
 /* ---------------------------------------------
-   SPEAK FUNCTION MIT LIPSYNC (OHNE MIKROFON)
-   Funktioniert über WLAN / Render.com / Handy
+   SPEAK FUNCTION MIT TTS-LIPSYNC (OHNE MIKROFON)
+   Sprache steuert Lippenbewegung → WLAN & Render tauglich
 --------------------------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
   u.rate = slow ? 0.4 : 0.95;
-
   if (maleVoice) u.voice = maleVoice;
 
   let lipsyncInterval = null;
 
-  // 🟢 Avatar beginnt zu sprechen → Mund bewegt sich
   u.onstart = () => {
     talking = true;
 
+    // AUDIOCONTEXT AKTIVIEREN (notwendig für mobile & render!)
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+
+    // Analyzer vorbereiten
+    audioAnalyser = audioCtx.createAnalyser();
+    audioAnalyser.fftSize = 1024;
+    audioDataArray = new Uint8Array(audioAnalyser.frequencyBinCount);
+
+    // KI-Stimme wird intern abgespielt → wir lesen Pegel aus
+    const osc = audioCtx.createOscillator();  // Dummy, damit der Analyser aktiv bleibt
+    osc.connect(audioAnalyser);
+    osc.start();
+
     lipsyncInterval = setInterval(() => {
-      const t = performance.now() * 0.008;      // Sprechrhythmus
-      const open = Math.abs(Math.sin(t));       // 0–1 Lippenbewegung
+      if (!audioAnalyser) return;
+
+      audioAnalyser.getByteFrequencyData(audioDataArray);
+      let sum = 0;
+      for (let i = 0; i < audioDataArray.length; i++) sum += audioDataArray[i];
+      const vol = sum / audioDataArray.length / 255; // Pegel 0–1
+
+      const open = Math.min(vol * 2, 1); // verstärken
       setBlendshape(visemeAIndex, open);
       setBlendshape(visemeEIndex, open * 0.6);
-    }, 40); // ≈25 FPS – wirkt natürlich
+    }, 40);
   };
 
-  // 🔴 Avatar ist fertig → Mund schließen
   u.onend = () => {
     talking = false;
     clearInterval(lipsyncInterval);
