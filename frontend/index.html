@@ -440,8 +440,8 @@ speechSynthesis.onvoiceschanged = setMaleVoice;
 setMaleVoice();
 
 /* ---------------------------------------------
-   SPEAK FUNCTION MIT TTS-LIPSYNC (OHNE MIKROFON)
-   Sprache steuert Lippenbewegung → WLAN & Render tauglich
+   SICHERE SPEAK FUNCTION (OHNE MIKROFON)
+   → funktioniert in Museum / WLAN / Render.com
 --------------------------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
@@ -453,37 +453,19 @@ function speak(text, slow = false) {
 
   u.onstart = () => {
     talking = true;
-
-    // AUDIOCONTEXT AKTIVIEREN (notwendig für mobile & render!)
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === "suspended") {
-      audioCtx.resume();
-    }
-
-    // Analyzer vorbereiten
-    audioAnalyser = audioCtx.createAnalyser();
-    audioAnalyser.fftSize = 1024;
-    audioDataArray = new Uint8Array(audioAnalyser.frequencyBinCount);
-
-    // KI-Stimme wird intern abgespielt → wir lesen Pegel aus
-    const osc = audioCtx.createOscillator();  // Dummy, damit der Analyser aktiv bleibt
-    osc.connect(audioAnalyser);
-    osc.start();
+    const speed = slow ? 0.004 : 0.008; // langsames Sprechen = geringere Bewegung
 
     lipsyncInterval = setInterval(() => {
-      if (!audioAnalyser) return;
+      const t = performance.now() * speed;
+      let open = Math.abs(Math.sin(t));
 
-      audioAnalyser.getByteFrequencyData(audioDataArray);
-      let sum = 0;
-      for (let i = 0; i < audioDataArray.length; i++) sum += audioDataArray[i];
-      const vol = sum / audioDataArray.length / 255; // Pegel 0–1
+      // 💡 leichte Variation → wirkt natürlicher
+      open += Math.random() * 0.2 - 0.1;
+      open = Math.min(Math.max(open, 0), 1);
 
-      const open = Math.min(vol * 2, 1); // verstärken
       setBlendshape(visemeAIndex, open);
       setBlendshape(visemeEIndex, open * 0.6);
-    }, 40);
+    }, 40); // 25 FPS – ideal fürs Web
   };
 
   u.onend = () => {
