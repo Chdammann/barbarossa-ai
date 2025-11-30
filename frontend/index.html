@@ -415,8 +415,8 @@ speechSynthesis.onvoiceschanged = setMaleVoice;
 setMaleVoice();
 
 /* ---------------------------------------------
-   SPEAK FUNCTION – natürliche, sanfte SIMULATION
-   👌 geeignet für Museum / Vortrag / Handy / Render.com
+   SPEAK FUNCTION – Feinschliff-Version
+   👉 sanfter, weniger Ausschlag, kein Nachklappern
 --------------------------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
@@ -429,46 +429,51 @@ function speak(text, slow = false) {
   u.onstart = () => {
     talking = true;
 
-    let speed = slow ? 0.012 : 0.028;  // etwas langsamer = ruhiger
+    let speed = slow ? 0.012 : 0.028;
     let step = 0;
 
     lipsyncInterval = setInterval(() => {
       step += speed;
 
-      // 🎯 Grundform des Sprechens: Silbenbewegung
-      let open = Math.sin(step * Math.PI * 0.9); // sanfter Rhythmus
+      // ➤ Silben-Rhythmus – ruhiger
+      let open = Math.sin(step * Math.PI * 0.9);
       open = Math.abs(open);
 
-      // 🧘 leichte Variation – aber kontrolliert
-      open *= (0.90 + Math.random() * 0.08);
+      // ➤ weniger Variation
+      open *= (0.92 + Math.random() * 0.05);
 
-      // 🫢 seltene & weiche Mikropausen
+      // ➤ seltene Mikropausen – weicher & kürzer
       if (Math.random() < 0.03) {
-        open *= 0.2;  // NICHT ganz schließen → menschlich
+        open *= 0.3;
       }
 
-      // 🚫 Mund nicht zu weit öffnen – gedämpft & glaubwürdig
-      open = Math.min(Math.max(open, 0), 0.65);
+      // ➤ Mund nicht weiter als 0.55 öffnen
+      open = Math.min(Math.max(open, 0), 0.55);
 
-      // 👉 Visemes bewegen
+      // --- WICHTIG: schnellere Reaktivität ---
+      // (abrupter Stop, wenn Sprache schon fertig ist)
+      if (!talking) open *= 0.4;
+
+      // Blendshapes setzen
       setBlendshape(visemeAIndex, open);
-      setBlendshape(visemeEIndex, open * 0.55); // leicht reduziert
-    }, 40); // ~25 FPS – ideal für Web
+      setBlendshape(visemeEIndex, open * 0.55);
+    }, 38);
   };
 
   u.onend = () => {
     talking = false;
     clearInterval(lipsyncInterval);
 
-    // Mund sicher schließen:
-    setBlendshape(visemeAIndex, 0);
-    setBlendshape(visemeEIndex, 0);
+    // ➤ sanft ausfaden (Mund schließt sich kurz nach Ende langsam)
+    const fadeOut = setInterval(() => {
+      setBlendshape(visemeAIndex, 0);
+      setBlendshape(visemeEIndex, 0);
+      clearInterval(fadeOut);
+    }, 100);
   };
 
   speechSynthesis.speak(u);
 }
-
-
 /* -----------------------------
    RESIZE
 ----------------------------- */
