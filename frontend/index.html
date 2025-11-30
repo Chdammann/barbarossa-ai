@@ -415,7 +415,8 @@ speechSynthesis.onvoiceschanged = setMaleVoice;
 setMaleVoice();
 
 /* ---------------------------------------------
-   SPEAK FUNCTION – NATÜRLICHE SIMULATION
+   SPEAK FUNCTION – natürliche, sanfte SIMULATION
+   👌 geeignet für Museum / Vortrag / Handy / Render.com
 --------------------------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
@@ -428,28 +429,31 @@ function speak(text, slow = false) {
   u.onstart = () => {
     talking = true;
 
-    let speed = slow ? 0.015 : 0.032;
+    let speed = slow ? 0.012 : 0.028;  // etwas langsamer = ruhiger
     let step = 0;
 
     lipsyncInterval = setInterval(() => {
-
       step += speed;
 
-      // 🎯 Mund bewegt sich wie bei echten Silben:
-      let open = Math.sin(step * Math.PI * 1.3);
+      // 🎯 Grundform des Sprechens: Silbenbewegung
+      let open = Math.sin(step * Math.PI * 0.9); // sanfter Rhythmus
       open = Math.abs(open);
 
-      // kleine Variation:
-      open *= (0.75 + Math.random() * 0.25);
+      // 🧘 leichte Variation – aber kontrolliert
+      open *= (0.90 + Math.random() * 0.08);
 
-      // Mikropausen = kurz Mund schließen
-      if (Math.random() < 0.08) open = 0;
+      // 🫢 seltene & weiche Mikropausen
+      if (Math.random() < 0.03) {
+        open *= 0.2;  // NICHT ganz schließen → menschlich
+      }
 
-      open = Math.min(Math.max(open, 0), 1);
+      // 🚫 Mund nicht zu weit öffnen – gedämpft & glaubwürdig
+      open = Math.min(Math.max(open, 0), 0.65);
 
+      // 👉 Visemes bewegen
       setBlendshape(visemeAIndex, open);
-      setBlendshape(visemeEIndex, open * 0.6);
-    }, 35); // etwas schneller für mehr „Leben“
+      setBlendshape(visemeEIndex, open * 0.55); // leicht reduziert
+    }, 40); // ~25 FPS – ideal für Web
   };
 
   u.onend = () => {
@@ -463,6 +467,7 @@ function speak(text, slow = false) {
 
   speechSynthesis.speak(u);
 }
+
 
 /* -----------------------------
    RESIZE
