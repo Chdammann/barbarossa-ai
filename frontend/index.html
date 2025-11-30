@@ -442,15 +442,13 @@ setMaleVoice();
 /* ---------------------------------------------
    SPEAK FUNCTION – stabile Lipsync-Version
    ✔ OHNE Mikrofon
-   ✔ ✔ Render.com / Museum / WLAN sicher
-   ✔ Nutzt Viseme_A & Viseme_E (oder jawOpen)
+   ✔ Render.com / Handy / Museum-tauglich
 --------------------------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
   u.rate = slow ? 0.5 : 1.0;
-
-  // falls männliche Stimme gefunden → verwenden
+  
   if (maleVoice) u.voice = maleVoice;
 
   let lipsyncInterval = null;
@@ -459,43 +457,31 @@ function speak(text, slow = false) {
     talking = true;
 
     lipsyncInterval = setInterval(() => {
-      // sanft sprechähnlich, aber nicht robotisch
-      const t = performance.now() * 0.006; // Sprechrhythmus
-      let open = Math.abs(Math.sin(t));    // Grundrhythmus
-
-      // leichte Abweichung → wirkt natürlicher
+      const t = performance.now() * 0.006;   // Sprechrhythmus
+      let open = Math.abs(Math.sin(t));      // Grundbewegung
+      
+      // leichte Variation für Natürlichkeit
       open += Math.random() * 0.2 - 0.1;
       open = Math.min(Math.max(open, 0), 1);  // clamp 0–1
 
-      // 👉 Hier kannst du auch nur jawOpen setzen, z.B.:
-      // setBlendshape(jawOpenIndex, open);
-
-      setBlendshape(visemeAIndex, open);          // Hauptöffnung
-      setBlendshape(visemeEIndex, open * 0.6);    // etwas schwächer
-    }, 45); // ~22 FPS → ideal für Web/Renderer/Museum
+      // 👉 Visemes (oder jawOpen) bewegen:
+      setBlendshape(visemeAIndex, open);
+      setBlendshape(visemeEIndex, open * 0.6);
+    }, 45); // ~22 FPS – ideal fürs Web
   };
 
   u.onend = () => {
     talking = false;
-
     clearInterval(lipsyncInterval);
 
-    // Mund sicher wieder schließen
+    // Mund sicher schließen:
     setBlendshape(visemeAIndex, 0);
     setBlendshape(visemeEIndex, 0);
   };
 
   speechSynthesis.speak(u);
-}
+}  // ← **DIESE KLAMMER SCHLIESST GENAU DIE SPEAK-FUNKTION**
 
-
-    // Mund schließen
-    setBlendshape(visemeAIndex, 0);
-    setBlendshape(visemeEIndex, 0);
-  };
-
-  speechSynthesis.speak(u);
-} // <<— WICHTIG: Block endet exakt hier
 
 /* -----------------------------
    RESIZE
