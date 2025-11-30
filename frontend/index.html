@@ -189,6 +189,14 @@ loader.load("./avatar.glb", gltf => {
 
   animate();
 });
+/* === Blendshape setzen === */
+function setBlendshape(index, value) {
+  model.traverse(obj => {
+    if (obj.isMesh && obj.morphTargetInfluences && index !== null) {
+      obj.morphTargetInfluences[index] = value;
+    }
+  });
+}
 
 /* -----------------------------------
    ANIMATE – FINAL & STABLE
@@ -275,7 +283,20 @@ if (!hmNeigen && !rising) {
     0.018
   );
 }
+// === LIPSYNC: einfache Simulation mit A & E ===
+if (talking) {
+  const t = performance.now() * 0.004; // Sprechrhythmus
+  const open = Math.abs(Math.sin(t));  // 0–1
 
+  // Mundbewegung: A etwas stärker, E etwas schwächer
+  setBlendshape(visemeAIndex, open);
+  setBlendshape(visemeEIndex, open * 0.6);
+
+} else {
+  // Mund schließen, wenn nicht sprechend
+  setBlendshape(visemeAIndex, 0);
+  setBlendshape(visemeEIndex, 0);
+}
 renderer.render(scene, camera);
 }
   
