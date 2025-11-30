@@ -283,20 +283,7 @@ if (!hmNeigen && !rising) {
     0.018
   );
 }
-// === LIPSYNC: einfache Simulation mit A & E ===
-if (talking) {
-  const t = performance.now() * 0.004; // Sprechrhythmus
-  const open = Math.abs(Math.sin(t));  // 0–1
 
-  // Mundbewegung: A etwas stärker, E etwas schwächer
-  setBlendshape(visemeAIndex, open);
-  setBlendshape(visemeEIndex, open * 0.6);
-
-} else {
-  // Mund schließen, wenn nicht sprechend
-  setBlendshape(visemeAIndex, 0);
-  setBlendshape(visemeEIndex, 0);
-}
 renderer.render(scene, camera);
 }
   
@@ -426,25 +413,41 @@ function setMaleVoice() {
 speechSynthesis.onvoiceschanged = setMaleVoice;
 setMaleVoice();
 
-
-/* -----------------------------
-   2) SPEAK FUNCTION   (NUTZT maleVoice)
------------------------------ */
+/* ---------------------------------------------
+   SPEAK FUNCTION MIT LIPSYNC (OHNE MIKROFON)
+   Funktioniert über WLAN / Render.com / Handy
+--------------------------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
   u.rate = slow ? 0.4 : 0.95;
 
-  // 💡 männliche Stimme nur verwenden, wenn vorhanden:
-  if (maleVoice) {
-    u.voice = maleVoice;
-  }
+  if (maleVoice) u.voice = maleVoice;
 
-  u.onstart = () => talking = true;
-  u.onend  = () => talking = false;
+  let lipsyncInterval = null;
+
+  // 🟢 Avatar beginnt zu sprechen → Mund bewegt sich
+  u.onstart = () => {
+    talking = true;
+
+    lipsyncInterval = setInterval(() => {
+      const t = performance.now() * 0.008;      // Sprechrhythmus
+      const open = Math.abs(Math.sin(t));       // 0–1 Lippenbewegung
+      setBlendshape(visemeAIndex, open);
+      setBlendshape(visemeEIndex, open * 0.6);
+    }, 40); // ≈25 FPS – wirkt natürlich
+  };
+
+  // 🔴 Avatar ist fertig → Mund schließen
+  u.onend = () => {
+    talking = false;
+    clearInterval(lipsyncInterval);
+    setBlendshape(visemeAIndex, 0);
+    setBlendshape(visemeEIndex, 0);
+  };
+
   speechSynthesis.speak(u);
 }
-
 
 /* -----------------------------
    RESIZE
