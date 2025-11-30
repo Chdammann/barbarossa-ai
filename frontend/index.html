@@ -107,31 +107,6 @@ function resetMovements() {
   rising   = false;
   talking  = false;
 }
-  /* ====== AudioContext für SpeechSynthesis (Lipsync) ====== */
-let audioCtx, audioAnalyser, audioDataArray;
-
-function initTTSAnalyser() {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  audioAnalyser = audioCtx.createAnalyser();
-  audioAnalyser.fftSize = 2048;
-  audioDataArray = new Uint8Array(audioAnalyser.frequencyBinCount);
-
-  console.log("🔊 TTS-Analyser aktiviert");
-}
-
-function getTTSVolume() {
-  if (!audioAnalyser) return 0;
-
-  audioAnalyser.getByteFrequencyData(audioDataArray);
-  let sum = 0;
-  for (let i = 0; i < audioDataArray.length; i++) sum += audioDataArray[i];
-  return sum / audioDataArray.length / 255;  // 0–1 Lautstärke
-}
-
-// 🔄 AUFRUF EINMAL beim Start
-initTTSAnalyser();
 
 /* -----------------------------
    THREE.js SETUP
