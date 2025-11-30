@@ -455,18 +455,37 @@ function speak(text, slow = false) {
     talking = true;
     const speed = slow ? 0.004 : 0.008; // langsames Sprechen = geringere Bewegung
 
-    lipsyncInterval = setInterval(() => {
-      const t = performance.now() * speed;
-      let open = Math.abs(Math.sin(t));
+    /* === KI-SPRECH-LAUTSTÄRKE ANALYSIEREN === */
+u.onstart = () => {
+  talking = true;
 
-      // 💡 leichte Variation → wirkt natürlicher
-      open += Math.random() * 0.2 - 0.1;
-      open = Math.min(Math.max(open, 0), 1);
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === "suspended") {
+    audioCtx.resume();
+  }
 
-      setBlendshape(visemeAIndex, open);
-      setBlendshape(visemeEIndex, open * 0.6);
-    }, 40); // 25 FPS – ideal fürs Web
-  };
+  // KI-Stimme als Audio-Quelle nutzen:
+  const audioSource = audioCtx.createMediaElementSource(new Audio());
+  const analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 1024;
+
+  const buffer = new Uint8Array(analyser.frequencyBinCount);
+  audioSource.connect(analyser);
+  analyser.connect(audioCtx.destination);
+
+  lipsyncInterval = setInterval(() => {
+    analyser.getByteFrequencyData(buffer);
+    let sum = 0;
+    for (let i = 0; i < buffer.length; i++) sum += buffer[i];
+    const vol = sum / buffer.length / 255;  // Pegel 0–1
+
+    const open = Math.min(vol * 2, 1); // verstärken
+    setBlendshape(visemeAIndex, open);
+    setBlendshape(visemeEIndex, open * 0.6);
+  }, 40);
+};
 
   u.onend = () => {
     talking = false;
