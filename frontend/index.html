@@ -139,13 +139,17 @@ const frontLight = new THREE.PointLight(0xffffff, 0.8);
 frontLight.position.set(0, 0.5, 2);
 scene.add(frontLight);
 
-/* -----------------------------
-   MODEL LADEN
------------------------------ */
+/* --------------------------------------------------
+   MODEL LADEN  (mit Blendshape-Erkennung)
+-------------------------------------------------- */
+let visemeAIndex = null;      // global definiert – oben im Code!
+let visemeEIndex = null;      // global definiert – oben im Code!
+
 const loader = new THREE.GLTFLoader();
 loader.load("./avatar.glb", gltf => {
   model = gltf.scene;
 
+  // Größe / Position wie bisher
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   model.scale.setScalar((1.5 / Math.max(size.x, size.y, size.z)) * 0.8);
@@ -156,8 +160,33 @@ loader.load("./avatar.glb", gltf => {
   model.rotation.y = baseRotY - Math.PI / 2;
   model.rotation.x = baseRotX;
 
+  /* --------------------------------------------
+     🔎 BLENDSHAPES AUTOMATISCH FINDEN
+  -------------------------------------------- */
+  model.traverse(obj => {
+    if (obj.isMesh && obj.morphTargetDictionary) {
+
+      // Blendshapes einmal in Console anzeigen:
+      console.log("Mesh:", obj.name, obj.morphTargetDictionary);
+
+      if (obj.morphTargetDictionary["Viseme_A"] !== undefined) {
+        visemeAIndex = obj.morphTargetDictionary["Viseme_A"];
+      }
+
+      if (obj.morphTargetDictionary["Viseme_E"] !== undefined) {
+        visemeEIndex = obj.morphTargetDictionary["Viseme_E"];
+      }
+    }
+  });
+
+  console.log("🟢 Viseme_A Index:", visemeAIndex, 
+              "| Viseme_E Index:", visemeEIndex);
+
+
+  /* -------------------------- */
   scene.add(model);
   document.getElementById("loading").style.display = "none";
+
   animate();
 });
 
