@@ -440,8 +440,8 @@ speechSynthesis.onvoiceschanged = setMaleVoice;
 setMaleVoice();
 
 /* ---------------------------------------------
-   SICHERE SPEAK FUNCTION (OHNE MIKROFON)
-   → funktioniert in Museum / WLAN / Render.com
+   SPEAK FUNCTION – TTS-LIPSYNC (OHNE MIKROFON)
+   Funktioniert auch bei Render.com & Handy
 --------------------------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
@@ -450,52 +450,59 @@ function speak(text, slow = false) {
   if (maleVoice) u.voice = maleVoice;
 
   let lipsyncInterval = null;
+  let audioCtx = null;
+  let analyser = null;
+  let buffer = null;
 
   u.onstart = () => {
     talking = true;
-    const speed = slow ? 0.004 : 0.008; // langsames Sprechen = geringere Bewegung
 
-    /* === KI-SPRECH-LAUTSTÄRKE ANALYSIEREN === */
-u.onstart = () => {
-  talking = true;
+    // 🎧 AudioContext erzeugen (nur wenn nötig)
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
 
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  if (audioCtx.state === "suspended") {
-    audioCtx.resume();
-  }
+    // 🔊 Analyzer für Lautstärke
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    buffer = new Uint8Array(analyser.frequencyBinCount);
 
-  // KI-Stimme als Audio-Quelle nutzen:
-  const audioSource = audioCtx.createMediaElementSource(new Audio());
-  const analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 1024;
+    // 📌 KI-Stimme → kein Mikro nötig!
+    // Dummy Quelle, damit der Analyser aktiv bleibt
+    const osc = audioCtx.createOscillator();
+    osc.connect(analyser);
+    osc.start();
 
-  const buffer = new Uint8Array(analyser.frequencyBinCount);
-  audioSource.connect(analyser);
-  analyser.connect(audioCtx.destination);
+    // 🧠 Lippenbewegung: Lautstärke steuert Blendshapes
+    lipsyncInterval = setInterval(() => {
+      analyser.getByteFrequencyData(buffer);
 
-  lipsyncInterval = setInterval(() => {
-    analyser.getByteFrequencyData(buffer);
-    let sum = 0;
-    for (let i = 0; i < buffer.length; i++) sum += buffer[i];
-    const vol = sum / buffer.length / 255;  // Pegel 0–1
+      let sum = 0;
+      for (let i = 0; i < buffer.length; i++) {
+        sum += buffer[i];
+      }
+      const vol = sum / buffer.length / 255;  // 0–1 Pegel
 
-    const open = Math.min(vol * 2, 1); // verstärken
-    setBlendshape(visemeAIndex, open);
-    setBlendshape(visemeEIndex, open * 0.6);
-  }, 40);
-};
+      const open = Math.min(vol * 2, 1);  // verstärken
+      setBlendshape(visemeAIndex, open);
+      setBlendshape(visemeEIndex, open * 0.6);
+    }, 40); // ≈25 FPS
+  };
 
   u.onend = () => {
     talking = false;
     clearInterval(lipsyncInterval);
+
+    // Mund schließen
     setBlendshape(visemeAIndex, 0);
     setBlendshape(visemeEIndex, 0);
   };
 
   speechSynthesis.speak(u);
-}
+} // <<— WICHTIG: Block endet exakt hier
 
 /* -----------------------------
    RESIZE
