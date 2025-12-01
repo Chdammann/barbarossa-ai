@@ -513,37 +513,25 @@ function speak(text, slow = false) {
 
     }, 35); // leicht schneller → wirkt weniger künstlich
   };
-
 u.onend = () => {
   talking = false;
   clearInterval(lipsyncInterval);
   lipsyncInterval = null;
 
-  // sanft und EINMALIG zurück in Idle-Mundhaltung
-  const start = {
-    jaw: getBlendshape(jawOpenIndex),
-    wide: getBlendshape(mouthWideIndex),
-    puck: getBlendshape(mouthPuckerIndex)
-  };
-  let tEnd = 0;
+  // --- EINZIGER sanfter Rücksprung ---
+  const startJaw  = getBlendshape(jawOpenIndex);
+  const startWide = getBlendshape(mouthWideIndex);
+  const startPuck = getBlendshape(mouthPuckerIndex);
 
-  const smoothClose = setInterval(() => {
-    tEnd += 0.12; // schneller -> kein Nachlauf
+  // EIN Frame ausblenden → glatter Übergang
+  requestAnimationFrame(() => {
+    setBlendshape(jawOpenIndex,  lerp(startJaw,  0.08, 0.8));   // sofort fast Idle
+    setBlendshape(mouthWideIndex, lerp(startWide, 0,    0.8));
+    setBlendshape(mouthPuckerIndex, lerp(startPuck, 0,  0.8));
+  });
+};  // ✔ Ende von u.onend
 
-    const factor = Math.min(1, tEnd);
-
-    setBlendshape(jawOpenIndex,  lerp(start.jaw,  0.1, factor)); // 0.1 = Atmung
-    setBlendshape(mouthWideIndex, lerp(start.wide, 0, factor));
-    setBlendshape(mouthPuckerIndex, lerp(start.puck, 0, factor));
-
-    if (factor >= 1) clearInterval(smoothClose);
-  }, 35); // 35ms = spürbar flüssig, aber nicht zittrig
-};
-
-
-
-  speechSynthesis.speak(u);
-}
+} // ✔ Ende der SPEAK-FUNKTION
 
 /* -----------------------------
    RESIZE
