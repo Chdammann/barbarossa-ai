@@ -81,6 +81,11 @@ let model, STATE = "idle";
 let lastTranscript = "";
 let talking = false, greeted = false;
 
+  // WICHTIG: Ganz oben im Code müssen stehen:
+let jawOpenIndex = null;
+let mouthWideIndex = null;
+let mouthPuckerIndex = null;
+
 // === Bewegungszustände ===
 let frontalFix = true;              // nach Laden: noch nicht frontal
 let hmNeigen   = false, hmStartTime = 0;
@@ -143,14 +148,11 @@ scene.add(frontLight);
 /* --------------------------------------------------
    MODEL LADEN  (mit Blendshape-Erkennung)
 -------------------------------------------------- */
-let visemeAIndex = null;      // global definiert – oben im Code!
-let visemeEIndex = null;      // global definiert – oben im Code!
-
 const loader = new THREE.GLTFLoader();
 loader.load("./avatar.glb", gltf => {
   model = gltf.scene;
 
-  // Größe / Position wie bisher
+  // === Größe & Position – bleibt wie bisher ===
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   model.scale.setScalar((1.5 / Math.max(size.x, size.y, size.z)) * 0.8);
@@ -162,34 +164,34 @@ loader.load("./avatar.glb", gltf => {
   model.rotation.x = baseRotX;
 
   /* --------------------------------------------
-     🔎 BLENDSHAPES AUTOMATISCH FINDEN
+     🔎 Blendshapes AUTOMATISCH FINDEN
   -------------------------------------------- */
   model.traverse(obj => {
     if (obj.isMesh && obj.morphTargetDictionary) {
-
-      // Blendshapes einmal in Console anzeigen:
       console.log("Mesh:", obj.name, obj.morphTargetDictionary);
 
-      if (obj.morphTargetDictionary["Viseme_A"] !== undefined) {
-        visemeAIndex = obj.morphTargetDictionary["Viseme_A"];
+      if (obj.morphTargetDictionary["jawOpen"] !== undefined) {
+        jawOpenIndex = obj.morphTargetDictionary["jawOpen"];
       }
-
-      if (obj.morphTargetDictionary["Viseme_E"] !== undefined) {
-        visemeEIndex = obj.morphTargetDictionary["Viseme_E"];
+      if (obj.morphTargetDictionary["mouthWide"] !== undefined) {
+        mouthWideIndex = obj.morphTargetDictionary["mouthWide"];
+      }
+      if (obj.morphTargetDictionary["mouthPucker"] !== undefined) {
+        mouthPuckerIndex = obj.morphTargetDictionary["mouthPucker"];
       }
     }
   });
 
-  console.log("🟢 Viseme_A Index:", visemeAIndex, 
-              "| Viseme_E Index:", visemeEIndex);
+  console.log("🟢 jawOpen =", jawOpenIndex,
+              "| mouthWide =", mouthWideIndex,
+              "| mouthPucker =", mouthPuckerIndex);
 
-
-  /* -------------------------- */
+  // === MODEL STARTEN ===
   scene.add(model);
   document.getElementById("loading").style.display = "none";
-
   animate();
 });
+
 /* === Blendshape setzen === */
 function setBlendshape(index, value) {
   model.traverse(obj => {
@@ -284,6 +286,26 @@ if (!hmNeigen && !rising) {
     0.018
   );
 }
+  /* ================================
+   LIPSYNC – erste Testanimation
+   ================================ */
+if (talking) {
+  const t = performance.now() * 0.006;
+  const jaw = Math.abs(Math.sin(t));   // 0–1 Bewegung
+  const wide = jaw * 0.6;              // A / E
+  const pucker = jaw * 0.4;            // O / U
+
+  setBlendshape(jawOpenIndex, jaw);
+  setBlendshape(mouthWideIndex, wide);
+  setBlendshape(mouthPuckerIndex, pucker);
+
+} else {
+  // Mund neutral & geschlossen
+  setBlendshape(jawOpenIndex, 0);
+  setBlendshape(mouthWideIndex, 0);
+  setBlendshape(mouthPuckerIndex, 0);
+}
+
 
 renderer.render(scene, camera);
 }
@@ -413,10 +435,8 @@ function setMaleVoice() {
 
 speechSynthesis.onvoiceschanged = setMaleVoice;
 setMaleVoice();
-
 /* ---------------------------------------------
-   SPEAK FUNCTION – Feinschliff-Version
-   👉 sanfter, weniger Ausschlag, kein Nachklappern
+   SPEAK FUNCTION – passt zu jawOpen / mouthWide / mouthPucker
 --------------------------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
@@ -429,51 +449,42 @@ function speak(text, slow = false) {
   u.onstart = () => {
     talking = true;
 
-    let speed = slow ? 0.012 : 0.028;
+    let speed = slow ? 0.012 : 0.028;   // langsames / normales Sprechen
     let step = 0;
 
     lipsyncInterval = setInterval(() => {
       step += speed;
 
-      // ➤ Silben-Rhythmus – ruhiger
-      let open = Math.sin(step * Math.PI * 0.9);
-      open = Math.abs(open);
+      // Basisöffnung (jawOpen)
+      let open = Math.abs(Math.sin(step * Math.PI * 0.9));
+      open *= (0.9 + Math.random() * 0.05); // dynamischer aber ruhig
 
-      // ➤ weniger Variation
-      open *= (0.92 + Math.random() * 0.05);
+      const wide    = open * 0.6;  // A / E-Form -> mouthWide
+      const pucker  = open * 0.4;  // O / U-Form -> mouthPucker
 
-      // ➤ seltene Mikropausen – weicher & kürzer
-      if (Math.random() < 0.03) {
-        open *= 0.3;
-      }
-
-      // ➤ Mund nicht weiter als 0.55 öffnen
-      open = Math.min(Math.max(open, 0), 0.55);
-
-      // --- WICHTIG: schnellere Reaktivität ---
-      // (abrupter Stop, wenn Sprache schon fertig ist)
-      if (!talking) open *= 0.4;
-
-      // Blendshapes setzen
-      setBlendshape(visemeAIndex, open);
-      setBlendshape(visemeEIndex, open * 0.55);
-    }, 38);
+      // --- BLENDSHAPES SETZEN ---
+      setBlendshape(jawOpenIndex, open);
+      setBlendshape(mouthWideIndex, wide);
+      setBlendshape(mouthPuckerIndex, pucker);
+    }, 40);  // ≈25 FPS – flüssig genug
   };
 
   u.onend = () => {
     talking = false;
     clearInterval(lipsyncInterval);
 
-    // ➤ sanft ausfaden (Mund schließt sich kurz nach Ende langsam)
+    // sanft ausfaden
     const fadeOut = setInterval(() => {
-      setBlendshape(visemeAIndex, 0);
-      setBlendshape(visemeEIndex, 0);
+      setBlendshape(jawOpenIndex, 0);
+      setBlendshape(mouthWideIndex, 0);
+      setBlendshape(mouthPuckerIndex, 0);
       clearInterval(fadeOut);
-    }, 100);
+    }, 120);
   };
 
   speechSynthesis.speak(u);
 }
+
 /* -----------------------------
    RESIZE
 ----------------------------- */
