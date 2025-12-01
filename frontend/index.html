@@ -353,7 +353,23 @@ if ("webkitSpeechRecognition" in window) {
           STATE = "answer";
           rising = true;
           riseStartTime = performance.now();
-          speak(data.answer);
+          // 🔁 NEUER BLOCK: ECHTES TTS MIT LIPSYNC
+fetch("/tts", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ text: data.answer })
+})
+.then(r => r.json())
+.then(dataTTS => {
+  // 1. Audio + Lippenbewegung
+  playAudioAndLipsync(dataTTS.audio, dataTTS.lipsync);
+})
+.catch(err => {
+  console.error("❌ TTS-Fallback:", err);
+  // Fallback: alte TTS nutzen
+  speak(data.answer);
+});
+
 
           // 3️⃣ ANTWORT FERTIG → jetzt erst zurück nach rechts!
           const waitUntilDone = setInterval(() => {
@@ -483,6 +499,53 @@ function speak(text, slow = false) {
   };
 
   speechSynthesis.speak(u);
+}
+/* --------------------------------------------------
+   AUDIO + LIPSYNC STARTEN (von OpenAI TTS)
+-------------------------------------------------- */
+function playAudioAndLipsync(base64Audio, lipsyncData) {
+  const audio = new Audio("data:audio/mp3;base64," + base64Audio);
+  audio.play();
+
+  talking = true;   // aktiviert animate() → Blendshapes
+
+  const startTime = performance.now();
+
+  function update() {
+    const nowSec = (performance.now() - startTime) / 1000;
+    const entry = lipsyncData.find(v => v.time <= nowSec);
+
+    const phoneme = entry?.phoneme || "REST";
+    applyPhoneme(phoneme);
+
+    if (!audio.paused) {
+      requestAnimationFrame(update);
+    } else {
+      talking = false;          // Mund schließen
+      applyPhoneme("REST");     // neutral
+    }
+  }
+  update();
+}
+/* --------------------------------------------------
+   PHONEME → BLENDSHAPES (ZUORDNUNG)
+-------------------------------------------------- */
+const phonemeMap = {
+  AI:  { jaw: 0.8, wide: 0.9, puck: 0.0 },  // A, E, I
+  E:   { jaw: 0.7, wide: 0.8, puck: 0.0 },
+  O:   { jaw: 0.6, wide: 0.2, puck: 0.9 },  // Oooo
+  U:   { jaw: 0.4, wide: 0.1, puck: 0.8 },
+  M:   { jaw: 0.2, wide: 0.0, puck: 0.0 },  // Lippen geschlossen
+  BMP: { jaw: 0.0, wide: 0.0, puck: 0.0 },  // B/P/M
+  REST:{ jaw: 0.1, wide: 0.0, puck: 0.0 }   // idle Mundhaltung
+};
+
+function applyPhoneme(p) {
+  const m = phonemeMap[p] || phonemeMap.REST;
+
+  setBlendshape(jawOpenIndex, m.jaw);
+  setBlendshape(mouthWideIndex, m.wide);
+  setBlendshape(mouthPuckerIndex, m.puck);
 }
 
 /* -----------------------------
