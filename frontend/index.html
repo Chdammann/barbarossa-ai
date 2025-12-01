@@ -466,37 +466,38 @@ function speak(text, slow = false) {
   u.onstart = () => {
     talking = true;
 
-    // --- Simpler pseudo-audio-driver ---
     lipsyncInterval = setInterval(() => {
-      // sanfter Rhythmus (sprechähnlich)
       step += slow ? 0.01 : 0.03;
 
-      // Grundöffnung (jawOpen)
-      let jaw = Math.abs(Math.sin(step * Math.PI));
-      jaw *= 0.7; // realistischere Tiefe
+      // 🧠 Grundöffnung – weniger Frosch, mehr sprechender Mensch
+      let jaw = Math.abs(Math.sin(step * 0.8)) * (0.6 + Math.random() * 0.2);
 
-      // leichte Variation (sehr sparsam)
-      const wide   = jaw * 0.4;  
-      const puck   = jaw * 0.3;
+      // 🗣 kleine Sprechrhythmus-Pausen (z.B. „Luft holen“)
+      if (Math.random() < 0.06) jaw *= 0.3;
 
-      setBlendshape(jawOpenIndex, jaw);
+      // 👄 Lippenvariation (wechselt subtil – A/E/O/U-Andeutung)
+      const wide = jaw * (0.3 + Math.random() * 0.3);     
+      const puck = jaw * (0.2 + Math.random() * 0.3);     
+
+      // --- BLENDSHAPES SETZEN ---
+      setBlendshape(jawOpenIndex,   jaw);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
 
-    }, 40); // ca. 25 FPS
+    }, 40); // ~25 FPS → smooth
   };
 
   u.onend = () => {
     talking = false;
     clearInterval(lipsyncInterval);
 
-    // sanftes Ausfaden
+    // sanft schließen (kein „ZACK“)
     const fadeOut = setInterval(() => {
       setBlendshape(jawOpenIndex, 0);
       setBlendshape(mouthWideIndex, 0);
       setBlendshape(mouthPuckerIndex, 0);
       clearInterval(fadeOut);
-    }, 120);
+    }, 100);
   };
 
   speechSynthesis.speak(u);
