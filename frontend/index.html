@@ -346,7 +346,7 @@ if ("webkitSpeechRecognition" in window) {
       STATE = "hmmm";
       hmNeigen = true;
       hmStartTime = performance.now();
-      speak("Ämmmmmmmmm..... einen Moment", true);
+      speak("Ähm..... einen Moment", true);
 
       // Mindestwartezeit einhalten:
       const MIN_HMMM = 4000;
@@ -523,23 +523,26 @@ function speak(text, slow = false) {
     }, 38);
   };
 
-  u.onend = () => {
-    clearInterval(lipsyncInterval);
-    lipsyncInterval = null;
-    talking = false;
+u.onend = () => {
+  clearInterval(lipsyncInterval);
+  lipsyncInterval = null;
+  talking = false;
 
-    setBlendshape(jawOpenIndex, 0.05);
-    setBlendshape(mouthWideIndex, 0);
-    setBlendshape(mouthPuckerIndex, 0);
+  // Sofort in Idle
+  setBlendshape(jawOpenIndex, 0.05);
+  setBlendshape(mouthWideIndex, 0);
+  setBlendshape(mouthPuckerIndex, 0);
 
-    justFinishedSpeaking = true;
-    mouthCooldown = true;
+  // Cooldown für animate(), aber micro-delay!
+  justFinishedSpeaking = true;
+  mouthCooldown = true;
 
-    requestAnimationFrame(() => {
-      justFinishedSpeaking = false;
-      mouthCooldown = false;
-    });
-  };
+  // ⏱ dieser Trick killt das Geister-Zittern:
+  setTimeout(() => {
+    justFinishedSpeaking = false;
+    mouthCooldown = false;
+  }, 20); // nur 20ms → fühlbar, aber unsichtbar
+};
 
   // GANZ WICHTIG!
   speechSynthesis.speak(u);
