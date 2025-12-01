@@ -80,6 +80,8 @@
 let model, STATE = "idle";
 let lastTranscript = "";
 let talking = false, greeted = false;
+let audioCtx, analyser, src;
+let jawIndex = jawOpenIndex;  // wir nutzen direkt deinen Index!
 
   // WICHTIG: Ganz oben im Code müssen stehen:
 let jawOpenIndex = null;
@@ -439,44 +441,46 @@ function setMaleVoice() {
 speechSynthesis.onvoiceschanged = setMaleVoice;
 setMaleVoice();
 /* ---------------------------------------------
-   SPEAK FUNCTION – passt zu jawOpen / mouthWide / mouthPucker
+   SPEAK FUNCTION – realistischere Mundbewegung
+   (weiterhin SpeechSynthesis → local TTS)
 --------------------------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
-  u.rate = slow ? 0.5 : 1.0;
+  u.rate = slow ? 0.6 : 1.0;
   if (maleVoice) u.voice = maleVoice;
 
   let lipsyncInterval = null;
+  let step = 0;
 
   u.onstart = () => {
     talking = true;
 
-    let speed = slow ? 0.012 : 0.028;   // langsames / normales Sprechen
-    let step = 0;
-
+    // --- Simpler pseudo-audio-driver ---
     lipsyncInterval = setInterval(() => {
-      step += speed;
+      // sanfter Rhythmus (sprechähnlich)
+      step += slow ? 0.01 : 0.03;
 
-      // Basisöffnung (jawOpen)
-      let open = Math.abs(Math.sin(step * Math.PI * 0.9));
-      open *= (0.9 + Math.random() * 0.05); // dynamischer aber ruhig
+      // Grundöffnung (jawOpen)
+      let jaw = Math.abs(Math.sin(step * Math.PI));
+      jaw *= 0.7; // realistischere Tiefe
 
-      const wide    = open * 0.6;  // A / E-Form -> mouthWide
-      const pucker  = open * 0.4;  // O / U-Form -> mouthPucker
+      // leichte Variation (sehr sparsam)
+      const wide   = jaw * 0.4;  
+      const puck   = jaw * 0.3;
 
-      // --- BLENDSHAPES SETZEN ---
-      setBlendshape(jawOpenIndex, open);
+      setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
-      setBlendshape(mouthPuckerIndex, pucker);
-    }, 40);  // ≈25 FPS – flüssig genug
+      setBlendshape(mouthPuckerIndex, puck);
+
+    }, 40); // ca. 25 FPS
   };
 
   u.onend = () => {
     talking = false;
     clearInterval(lipsyncInterval);
 
-    // sanft ausfaden
+    // sanftes Ausfaden
     const fadeOut = setInterval(() => {
       setBlendshape(jawOpenIndex, 0);
       setBlendshape(mouthWideIndex, 0);
@@ -487,53 +491,7 @@ function speak(text, slow = false) {
 
   speechSynthesis.speak(u);
 }
-/* --------------------------------------------------
-   AUDIO + LIPSYNC STARTEN (von OpenAI TTS)
--------------------------------------------------- */
-function playAudioAndLipsync(base64Audio, lipsyncData) {
-  const audio = new Audio("data:audio/mp3;base64," + base64Audio);
-  audio.play();
 
-  talking = true;   // aktiviert animate() → Blendshapes
-
-  const startTime = performance.now();
-
-  function update() {
-    const nowSec = (performance.now() - startTime) / 1000;
-    const entry = lipsyncData.find(v => v.time <= nowSec);
-
-    const phoneme = entry?.phoneme || "REST";
-    applyPhoneme(phoneme);
-
-    if (!audio.paused) {
-      requestAnimationFrame(update);
-    } else {
-      talking = false;          // Mund schließen
-      applyPhoneme("REST");     // neutral
-    }
-  }
-  update();
-}
-/* --------------------------------------------------
-   PHONEME → BLENDSHAPES (ZUORDNUNG)
--------------------------------------------------- */
-const phonemeMap = {
-  AI:  { jaw: 0.8, wide: 0.9, puck: 0.0 },  // A, E, I
-  E:   { jaw: 0.7, wide: 0.8, puck: 0.0 },
-  O:   { jaw: 0.6, wide: 0.2, puck: 0.9 },  // Oooo
-  U:   { jaw: 0.4, wide: 0.1, puck: 0.8 },
-  M:   { jaw: 0.2, wide: 0.0, puck: 0.0 },  // Lippen geschlossen
-  BMP: { jaw: 0.0, wide: 0.0, puck: 0.0 },  // B/P/M
-  REST:{ jaw: 0.1, wide: 0.0, puck: 0.0 }   // idle Mundhaltung
-};
-
-function applyPhoneme(p) {
-  const m = phonemeMap[p] || phonemeMap.REST;
-
-  setBlendshape(jawOpenIndex, m.jaw);
-  setBlendshape(mouthWideIndex, m.wide);
-  setBlendshape(mouthPuckerIndex, m.puck);
-}
 
 /* -----------------------------
    RESIZE
