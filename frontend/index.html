@@ -512,18 +512,28 @@ function speak(text, slow = false) {
       setBlendshape(mouthPuckerIndex, puck);
     }, 35);
   };
-
-
- u.onend = () => {
+u.onend = () => {
+  // 🔴 SOFORT ALLES stoppen – kein Frame darf mehr sprechen!
   talking = false;
   clearInterval(lipsyncInterval);
   lipsyncInterval = null;
 
-  // 🧹 HARTE Rücksetzung – kein Zittern möglich
-  setBlendshape(jawOpenIndex, 0.1); // leichte Atmung
+  // 🧹 Alles auf Idle — ABER nur EINMAL und sofort
+  setBlendshape(jawOpenIndex, 0.05);   // ganz dezente Atmung
   setBlendshape(mouthWideIndex, 0.0);
   setBlendshape(mouthPuckerIndex, 0.0);
+
+  // 👇 verhindert Nachzittern absolut zuverlässig:
+  // animate() bekommt Zeit, sich neu einzustellen
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      setBlendshape(jawOpenIndex, 0.05);
+      setBlendshape(mouthWideIndex, 0.0);
+      setBlendshape(mouthPuckerIndex, 0.0);
+    });
+  });
 };
+
 
   // 🔥 WICHTIG! → MUSS drin sein, SONST spricht er nicht:
   speechSynthesis.speak(u);
