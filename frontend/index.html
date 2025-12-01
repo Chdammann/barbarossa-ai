@@ -450,10 +450,6 @@ function setMaleVoice() {
 
 speechSynthesis.onvoiceschanged = setMaleVoice;
 setMaleVoice();
-/* ---------------------------------------------
-   SPEAK FUNCTION – realistischere Mundbewegung
-   (weiterhin SpeechSynthesis → local TTS)
---------------------------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
@@ -461,37 +457,34 @@ function speak(text, slow = false) {
   if (maleVoice) u.voice = maleVoice;
 
   let lipsyncInterval = null;
-  let step = 0;
+  let t = 0;
 
   u.onstart = () => {
     talking = true;
 
     lipsyncInterval = setInterval(() => {
-      step += slow ? 0.01 : 0.03;
+      t += slow ? 0.016 : 0.028;   // langsamer Zeitverlauf
 
-      // 🧠 Grundöffnung – weniger Frosch, mehr sprechender Mensch
-      let jaw = Math.abs(Math.sin(step * 0.8)) * (0.6 + Math.random() * 0.2);
+      // 🧘 Ruhiger, fließender Sprechrhythmus
+      let jaw = Math.abs(Math.sin(t)) * 0.55; // Grundbewegung
+      jaw += Math.abs(Math.sin(t * 0.35)) * 0.1; // leichte Nuance
 
-      // 🗣 kleine Sprechrhythmus-Pausen (z.B. „Luft holen“)
-      if (Math.random() < 0.06) jaw *= 0.3;
+      // 👍 KEIN random() mehr → deutlich ruhiger
+      const wide = jaw * 0.25;
+      const puck = jaw * 0.18;
 
-      // 👄 Lippenvariation (wechselt subtil – A/E/O/U-Andeutung)
-      const wide = jaw * (0.3 + Math.random() * 0.3);     
-      const puck = jaw * (0.2 + Math.random() * 0.3);     
-
-      // --- BLENDSHAPES SETZEN ---
-      setBlendshape(jawOpenIndex,   jaw);
+      setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
 
-    }, 40); // ~25 FPS → smooth
+    }, 40); // ~25 FPS
   };
 
   u.onend = () => {
     talking = false;
     clearInterval(lipsyncInterval);
 
-    // sanft schließen (kein „ZACK“)
+    // sanft schließen
     const fadeOut = setInterval(() => {
       setBlendshape(jawOpenIndex, 0);
       setBlendshape(mouthWideIndex, 0);
@@ -502,8 +495,6 @@ function speak(text, slow = false) {
 
   speechSynthesis.speak(u);
 }
-
-
 /* -----------------------------
    RESIZE
 ----------------------------- */
