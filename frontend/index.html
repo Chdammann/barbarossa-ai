@@ -72,21 +72,27 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.146.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-/* -----------------------------
+
+/* ===============================
    STATE-VARIABLEN + SICHERHEIT
------------------------------ */
+================================ */
 
-// === Hauptzustände ===
-let model, STATE = "idle";
-let lastTranscript = "";
-let talking = false, greeted = false;
-let audioCtx, analyser, src;
-let jawIndex = jawOpenIndex;  // wir nutzen direkt deinen Index!
-
-  // WICHTIG: Ganz oben im Code müssen stehen:
+// === Blendshape-Indices (Default bis Modell geladen) ===
 let jawOpenIndex = null;
 let mouthWideIndex = null;
 let mouthPuckerIndex = null;
+
+// Audio / Analyse
+let audioCtx, analyser, src;
+
+// Hauptzustände
+let model, STATE = "idle";
+let lastTranscript = "";
+let talking = false, greeted = false;
+
+// jawIndex NICHT hier setzen!
+// --> wird später automatisch gesetzt, sobald das Modell geladen wurde
+
 
 // === Bewegungszustände ===
 let frontalFix = true;              // nach Laden: noch nicht frontal
@@ -152,12 +158,14 @@ scene.add(frontLight);
 -------------------------------------------------- */
 const loader = new THREE.GLTFLoader();
 loader.load("./avatar.glb", gltf => {
+
   model = gltf.scene;
 
   // === Größe & Position – bleibt wie bisher ===
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   model.scale.setScalar((1.5 / Math.max(size.x, size.y, size.z)) * 0.8);
+
   const center = box.getCenter(new THREE.Vector3());
   model.position.sub(center);
 
@@ -165,26 +173,25 @@ loader.load("./avatar.glb", gltf => {
   model.rotation.y = baseRotY - Math.PI / 2;
   model.rotation.x = baseRotX;
 
-  /* --------------------------------------------
-     🔎 Blendshapes AUTOMATISCH FINDEN
-  -------------------------------------------- */
+  /* --------------------------------------------------
+     🔎 Blendshapes AUTOMATISCH FINDEN (saubere Variante)
+  -------------------------------------------------- */
   model.traverse(obj => {
     if (obj.isMesh && obj.morphTargetDictionary) {
       console.log("Mesh:", obj.name, obj.morphTargetDictionary);
 
-      if (obj.morphTargetDictionary["jawOpen"] !== undefined) {
-        jawOpenIndex = obj.morphTargetDictionary["jawOpen"];
-      }
-      if (obj.morphTargetDictionary["mouthWide"] !== undefined) {
-        mouthWideIndex = obj.morphTargetDictionary["mouthWide"];
-      }
-      if (obj.morphTargetDictionary["mouthPucker"] !== undefined) {
-        mouthPuckerIndex = obj.morphTargetDictionary["mouthPucker"];
+      for (const [name, idx] of Object.entries(obj.morphTargetDictionary)) {
+        const lower = name.toLowerCase();
+
+        if (lower.includes("jaw"))   jawOpenIndex = idx;
+        if (lower.includes("wide"))  mouthWideIndex = idx;
+        if (lower.includes("puck"))  mouthPuckerIndex = idx;
       }
     }
   });
 
-  console.log("🟢 jawOpen =", jawOpenIndex,
+  console.log("✔ FINAL Blendshape-Indices:",
+              "jawOpen =", jawOpenIndex,
               "| mouthWide =", mouthWideIndex,
               "| mouthPucker =", mouthPuckerIndex);
 
@@ -193,16 +200,6 @@ loader.load("./avatar.glb", gltf => {
   document.getElementById("loading").style.display = "none";
   animate();
 });
-
-/* === Blendshape setzen === */
-function setBlendshape(index, value) {
-  model.traverse(obj => {
-    if (obj.isMesh && obj.morphTargetInfluences && index !== null) {
-      obj.morphTargetInfluences[index] = value;
-    }
-  });
-}
-
 /* -----------------------------------
    ANIMATE – FINAL & STABLE
 ----------------------------------- */
