@@ -216,9 +216,19 @@ function setBlendshape(index, value) {
 /* -----------------------------------
    ANIMATE – FINAL & STABLE
 ----------------------------------- */
+/* -----------------------------------
+   ANIMATE – FINAL & STABLE
+----------------------------------- */
 function animate() {
   requestAnimationFrame(animate);
   if (!model) return;
+
+  // 🟢 GANZ WICHTIG: Idle-Mundhaltung, wenn NICHT gesprochen wird
+  if (!talking) {
+    setBlendshape(jawOpenIndex, 0.05);  // dezente Atmung
+    setBlendshape(mouthWideIndex, 0.0);
+    setBlendshape(mouthPuckerIndex, 0.0);
+  }
 
   const now = performance.now();
   const frontalY = -Math.PI / 2;               // frontal
@@ -232,6 +242,7 @@ function animate() {
     renderer.render(scene, camera);
     return;
   }
+
 
   // 1️⃣ GREET / ANTWORTBEGINN → FRONTAL
   if (rising) {
@@ -477,7 +488,7 @@ function getBlendshape(index) {
 }
 
 /* -----------------------------
-   SPEAK – Natürlicher
+   SPEAK – Natürlicher (FINAL)
 ----------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
@@ -510,34 +521,23 @@ function speak(text, slow = false) {
       setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
-    }, 35);
+    }, 35); // ~28 FPS
   };
-u.onend = () => {
-  // 🔴 SOFORT ALLES stoppen – kein Frame darf mehr sprechen!
-  talking = false;
-  clearInterval(lipsyncInterval);
-  lipsyncInterval = null;
 
-  // 🧹 Alles auf Idle — ABER nur EINMAL und sofort
-  setBlendshape(jawOpenIndex, 0.05);   // ganz dezente Atmung
-  setBlendshape(mouthWideIndex, 0.0);
-  setBlendshape(mouthPuckerIndex, 0.0);
+  u.onend = () => {
+    // 🔴 SOFORT stoppen:
+    talking = false;
+    clearInterval(lipsyncInterval);
+    lipsyncInterval = null;
 
-  // 👇 verhindert Nachzittern absolut zuverlässig:
-  // animate() bekommt Zeit, sich neu einzustellen
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      setBlendshape(jawOpenIndex, 0.05);
-      setBlendshape(mouthWideIndex, 0.0);
-      setBlendshape(mouthPuckerIndex, 0.0);
-    });
-  });
-};
+    // 🧹 EINMAL sauber auf Idle setzen (hier nur sofort):
+    setBlendshape(jawOpenIndex, 0.05);
+    setBlendshape(mouthWideIndex, 0.0);
+    setBlendshape(mouthPuckerIndex, 0.0);
+  };
 
-
-  // 🔥 WICHTIG! → MUSS drin sein, SONST spricht er nicht:
-  speechSynthesis.speak(u);
-}  // Ende SPEAK
+  speechSynthesis.speak(u);  // ➤ MUSS drin bleiben
+}
 
 /* -----------------------------
    RESIZE
