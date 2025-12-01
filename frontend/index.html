@@ -216,9 +216,6 @@ function setBlendshape(index, value) {
 /* -----------------------------------
    ANIMATE – FINAL & STABLE
 ----------------------------------- */
-/* -----------------------------------
-   ANIMATE – FINAL & STABLE
------------------------------------ */
 function animate() {
   requestAnimationFrame(animate);
   if (!model) return;
@@ -487,9 +484,6 @@ function getBlendshape(index) {
   return value;
 }
 
-/* -----------------------------
-   SPEAK – Natürlicher (FINAL)
------------------------------ */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
@@ -505,14 +499,10 @@ function speak(text, slow = false) {
     lipsyncInterval = setInterval(() => {
       t += slow ? 0.05 : 0.1;
 
-      // --- Basisöffnung (sprechtypisch) ---
       let jaw = Math.abs(Math.sin(t)) * 0.45;
-
-      // --- kleine Unregelmäßigkeit ---
       jaw += (Math.random() * 0.15 - 0.07);
       jaw = Math.min(Math.max(jaw, 0), 0.45);
 
-      // --- gelegentliche Mikro-Pause ---
       if (Math.random() < 0.05) jaw *= 0.3;
 
       const wide = jaw * 0.35;
@@ -521,22 +511,28 @@ function speak(text, slow = false) {
       setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
-    }, 35); // ~28 FPS
+    }, 35);
   };
 
-  u.onend = () => {
-    // 🔴 SOFORT stoppen:
-    talking = false;
-    clearInterval(lipsyncInterval);
-    lipsyncInterval = null;
+u.onend = () => {
+  talking = false;
+  clearInterval(lipsyncInterval);
+  lipsyncInterval = null;
 
-    // 🧹 EINMAL sauber auf Idle setzen (hier nur sofort):
+  // 🛑 SOFORT ALLES fixieren (kein Nachzittern möglich)
+  setBlendshape(jawOpenIndex, 0.05);
+  setBlendshape(mouthWideIndex, 0.0);
+  setBlendshape(mouthPuckerIndex, 0.0);
+
+  // 🧊 EIN einziges Frame später nochmals fix — SICHER!!
+  requestAnimationFrame(() => {
     setBlendshape(jawOpenIndex, 0.05);
     setBlendshape(mouthWideIndex, 0.0);
     setBlendshape(mouthPuckerIndex, 0.0);
-  };
+  });
+};
 
-  speechSynthesis.speak(u);  // ➤ MUSS drin bleiben
+   speechSynthesis.speak(u);  // ➤ MUSS drin bleiben
 }
 
 /* -----------------------------
