@@ -286,26 +286,13 @@ if (!hmNeigen && !rising) {
     0.018
   );
 }
-  /* ================================
-   LIPSYNC – erste Testanimation
-   ================================ */
-if (talking) {
-  const t = performance.now() * 0.006;
-  const jaw = Math.abs(Math.sin(t));   // 0–1 Bewegung
-  const wide = jaw * 0.6;              // A / E
-  const pucker = jaw * 0.4;            // O / U
-
-  setBlendshape(jawOpenIndex, jaw);
-  setBlendshape(mouthWideIndex, wide);
-  setBlendshape(mouthPuckerIndex, pucker);
-
-} else {
-  // Mund neutral & geschlossen
+  // 🟢 OpenAI TTS steuert Lippen – animate greift NICHT mehr ein.
+// (nur wenn NICHT talking, Mund neutral halten)
+if (!talking) {
   setBlendshape(jawOpenIndex, 0);
   setBlendshape(mouthWideIndex, 0);
   setBlendshape(mouthPuckerIndex, 0);
 }
-
 
 renderer.render(scene, camera);
 }
