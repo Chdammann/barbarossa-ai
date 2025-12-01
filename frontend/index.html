@@ -514,31 +514,20 @@ function speak(text, slow = false) {
   };
 
 
-  u.onend = () => {
-    talking = false;
-    clearInterval(lipsyncInterval);
-    lipsyncInterval = null;
+ u.onend = () => {
+  talking = false;
+  clearInterval(lipsyncInterval);
+  lipsyncInterval = null;
 
-    // --- EIN Frame sanft zurück in Idle ---
-    const startJaw  = getBlendshape(jawOpenIndex);
-    const startWide = getBlendshape(mouthWideIndex);
-    const startPuck = getBlendshape(mouthPuckerIndex);
-
-    requestAnimationFrame(() => {
-      setBlendshape(jawOpenIndex,  lerp(startJaw,  0.08, 0.8));
-      setBlendshape(mouthWideIndex, lerp(startWide, 0,    0.8));
-      setBlendshape(mouthPuckerIndex, lerp(startPuck, 0,  0.8));
-    });
-  };
+  // 🧹 HARTE Rücksetzung – kein Zittern möglich
+  setBlendshape(jawOpenIndex, 0.1); // leichte Atmung
+  setBlendshape(mouthWideIndex, 0.0);
+  setBlendshape(mouthPuckerIndex, 0.0);
+};
 
   // 🔥 WICHTIG! → MUSS drin sein, SONST spricht er nicht:
   speechSynthesis.speak(u);
 }  // Ende SPEAK
-
-
-/* -----------------------------
-   RESIZE
------------------------------ */
 
 /* -----------------------------
    RESIZE
