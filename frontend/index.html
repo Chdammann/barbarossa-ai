@@ -217,12 +217,7 @@ function setBlendshape(index, value) {
   });
 }
 
-/* -----------------------------------
-   ANIMATE – FINAL & STABLE
------------------------------------ */
-function animate() {
-  requestAnimationFrame(animate);
-  if (!model) return;
+
   // ====================================
 // ANIMATE – FINAL & STABLE
 // ====================================
@@ -514,46 +509,49 @@ function speak(text, slow = false) {
     lipsyncInterval = setInterval(() => {
       t += slow ? 0.05 : 0.1;
 
+      // --- Basisöffnung ---
       let jaw = Math.abs(Math.sin(t)) * 0.45;
-      jaw += (Math.random() * 0.15 - 0.07);
+
+      // --- Variation ---
+      jaw += (Math.random() * 0.12 - 0.06);  // etwas sanfter
       jaw = Math.min(Math.max(jaw, 0), 0.45);
 
-      if (Math.random() < 0.05) jaw *= 0.3;
+      // --- Mikro-Pause ---
+      if (Math.random() < 0.03) jaw *= 0.25;  // seltener
 
-      const wide = jaw * 0.35;
-      const puck = jaw * 0.22;
+      const wide = jaw * 0.32;
+      const puck = jaw * 0.18;
 
       setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
-    }, 35);
+    }, 38); // leicht sanfter als 35ms
   };
 
   u.onend = () => {
-    clearInterval(lipsyncInterval);
-    lipsyncInterval = null;
-    talking = false;
+  clearInterval(lipsyncInterval);
+  lipsyncInterval = null;
+  talking = false;
 
-    // Mund SOFORT in Idle
-    setBlendshape(jawOpenIndex, 0.05);
-    setBlendshape(mouthWideIndex, 0);
-    setBlendshape(mouthPuckerIndex, 0);
+  // 🧊 Sofort Mund in Idle
+  setBlendshape(jawOpenIndex, 0.05);
+  setBlendshape(mouthWideIndex, 0.0);
+  setBlendshape(mouthPuckerIndex, 0.0);
 
-    // 🧊 Cooldown aktivieren → animate greift NICHT ein
-    justFinishedSpeaking = true;
-    mouthCooldown = true;
+  // 🚫 nur EIN "just finished" Frame
+  justFinishedSpeaking = true;
+  mouthCooldown = true;
 
-    // nach EINEM Frame wieder deaktivieren
-    requestAnimationFrame(() => {
-      justFinishedSpeaking = false;
-    });
-    requestAnimationFrame(() => {
-      mouthCooldown = false;
-    });
-  };
+  requestAnimationFrame(() => {
+    justFinishedSpeaking = false;
+    mouthCooldown = false;
+  });
+};
 
-  speechSynthesis.speak(u);
-}
+
+  // GANZ WICHTIG — SONST SPRICHT ER NICHT!
+  speechSynthesis.speak(u)
+
 
 /* -----------------------------
    RESIZE
