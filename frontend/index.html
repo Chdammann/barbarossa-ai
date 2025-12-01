@@ -509,15 +509,10 @@ function speak(text, slow = false) {
     lipsyncInterval = setInterval(() => {
       t += slow ? 0.05 : 0.1;
 
-      // --- Basisöffnung ---
       let jaw = Math.abs(Math.sin(t)) * 0.45;
-
-      // --- Variation ---
-      jaw += (Math.random() * 0.12 - 0.06);  // etwas sanfter
+      jaw += (Math.random() * 0.12 - 0.06);
       jaw = Math.min(Math.max(jaw, 0), 0.45);
-
-      // --- Mikro-Pause ---
-      if (Math.random() < 0.03) jaw *= 0.25;  // seltener
+      if (Math.random() < 0.03) jaw *= 0.25;
 
       const wide = jaw * 0.32;
       const puck = jaw * 0.18;
@@ -525,33 +520,30 @@ function speak(text, slow = false) {
       setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
-    }, 38); // leicht sanfter als 35ms
+    }, 38);
   };
 
   u.onend = () => {
-  clearInterval(lipsyncInterval);
-  lipsyncInterval = null;
-  talking = false;
+    clearInterval(lipsyncInterval);
+    lipsyncInterval = null;
+    talking = false;
 
-  // 🧊 Sofort Mund in Idle
-  setBlendshape(jawOpenIndex, 0.05);
-  setBlendshape(mouthWideIndex, 0.0);
-  setBlendshape(mouthPuckerIndex, 0.0);
+    setBlendshape(jawOpenIndex, 0.05);
+    setBlendshape(mouthWideIndex, 0);
+    setBlendshape(mouthPuckerIndex, 0);
 
-  // 🚫 nur EIN "just finished" Frame
-  justFinishedSpeaking = true;
-  mouthCooldown = true;
+    justFinishedSpeaking = true;
+    mouthCooldown = true;
 
-  requestAnimationFrame(() => {
-    justFinishedSpeaking = false;
-    mouthCooldown = false;
-  });
-};
+    requestAnimationFrame(() => {
+      justFinishedSpeaking = false;
+      mouthCooldown = false;
+    });
+  };
 
-
-  // GANZ WICHTIG — SONST SPRICHT ER NICHT!
-  speechSynthesis.speak(u)
-
+  // GANZ WICHTIG!
+  speechSynthesis.speak(u);
+}  // <== ENDE SPEAK – Klammern stimmen!
 
 /* -----------------------------
    RESIZE
