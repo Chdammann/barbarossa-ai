@@ -89,6 +89,7 @@ let audioCtx, analyser, src;
 let model, STATE = "idle";
 let lastTranscript = "";
 let talking = false, greeted = false;
+let mouthCooldown = false;   // 🆕 NEU
 
 // jawIndex NICHT hier setzen!
 // --> wird später automatisch gesetzt, sobald das Modell geladen wurde
@@ -221,11 +222,13 @@ function animate() {
   if (!model) return;
 
   // 🟢 GANZ WICHTIG: Idle-Mundhaltung, wenn NICHT gesprochen wird
-  if (!talking) {
-    setBlendshape(jawOpenIndex, 0.05);  // dezente Atmung
-    setBlendshape(mouthWideIndex, 0.0);
-    setBlendshape(mouthPuckerIndex, 0.0);
-  }
+ // Idle-Mundhaltung – ABER nur wenn kein cooldown aktiv
+if (!talking && !mouthCooldown) {
+  setBlendshape(jawOpenIndex, 0.05);
+  setBlendshape(mouthWideIndex, 0.0);
+  setBlendshape(mouthPuckerIndex, 0.0);
+}
+
 
   const now = performance.now();
   const frontalY = -Math.PI / 2;               // frontal
