@@ -200,6 +200,19 @@ loader.load("./avatar.glb", gltf => {
   document.getElementById("loading").style.display = "none";
   animate();
 });
+  /* --------------------------------------------------
+   BLENDSHAPE SETZEN – GLOBAL & VOR SPEAK EINBINDEN!
+-------------------------------------------------- */
+function setBlendshape(index, value) {
+  if (index === null || !model) return;
+
+  model.traverse(obj => {
+    if (obj.isMesh && obj.morphTargetInfluences) {
+      obj.morphTargetInfluences[index] = value;
+    }
+  });
+}
+
 /* -----------------------------------
    ANIMATE – FINAL & STABLE
 ----------------------------------- */
