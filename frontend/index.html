@@ -90,6 +90,9 @@ let model, STATE = "idle";
 let lastTranscript = "";
 let talking = false, greeted = false;
 let mouthCooldown = false;   // 🆕 NEU
+  // Zusatzflag: 1 Frame Verzögerung nach Speech-Ende
+let justFinishedSpeaking = false;
+
 
 // jawIndex NICHT hier setzen!
 // --> wird später automatisch gesetzt, sobald das Modell geladen wurde
@@ -220,15 +223,19 @@ function setBlendshape(index, value) {
 function animate() {
   requestAnimationFrame(animate);
   if (!model) return;
+  // ====================================
+// ANIMATE – FINAL & STABLE
+// ====================================
+function animate() {
+  requestAnimationFrame(animate);
+  if (!model) return;
 
-  // 🟢 GANZ WICHTIG: Idle-Mundhaltung, wenn NICHT gesprochen wird
- // Idle-Mundhaltung – ABER nur wenn kein cooldown aktiv
-if (!talking && !mouthCooldown) {
-  setBlendshape(jawOpenIndex, 0.05);
-  setBlendshape(mouthWideIndex, 0.0);
-  setBlendshape(mouthPuckerIndex, 0.0);
-}
-
+  // 🧊 Nur Idle, wenn NICHT gerade frisch gesprochen wurde:
+  if (!talking && !justFinishedSpeaking && !mouthCooldown) {
+      setBlendshape(jawOpenIndex, 0.05);  // dezente Atmung
+      setBlendshape(mouthWideIndex, 0.0);
+      setBlendshape(mouthPuckerIndex, 0.0);
+  }
 
   const now = performance.now();
   const frontalY = -Math.PI / 2;               // frontal
@@ -487,6 +494,9 @@ function getBlendshape(index) {
   return value;
 }
 
+/* -----------------------------
+   SPEAK – NATÜRLICH & STABIL
+----------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
@@ -498,6 +508,8 @@ function speak(text, slow = false) {
 
   u.onstart = () => {
     talking = true;
+    mouthCooldown = false;
+    justFinishedSpeaking = false;
 
     lipsyncInterval = setInterval(() => {
       t += slow ? 0.05 : 0.1;
@@ -517,25 +529,30 @@ function speak(text, slow = false) {
     }, 35);
   };
 
-u.onend = () => {
-  talking = false;
-  clearInterval(lipsyncInterval);
-  lipsyncInterval = null;
+  u.onend = () => {
+    clearInterval(lipsyncInterval);
+    lipsyncInterval = null;
+    talking = false;
 
-  // 🛑 SOFORT ALLES fixieren (kein Nachzittern möglich)
-  setBlendshape(jawOpenIndex, 0.05);
-  setBlendshape(mouthWideIndex, 0.0);
-  setBlendshape(mouthPuckerIndex, 0.0);
-
-  // 🧊 EIN einziges Frame später nochmals fix — SICHER!!
-  requestAnimationFrame(() => {
+    // Mund SOFORT in Idle
     setBlendshape(jawOpenIndex, 0.05);
-    setBlendshape(mouthWideIndex, 0.0);
-    setBlendshape(mouthPuckerIndex, 0.0);
-  });
-};
+    setBlendshape(mouthWideIndex, 0);
+    setBlendshape(mouthPuckerIndex, 0);
 
-   speechSynthesis.speak(u);  // ➤ MUSS drin bleiben
+    // 🧊 Cooldown aktivieren → animate greift NICHT ein
+    justFinishedSpeaking = true;
+    mouthCooldown = true;
+
+    // nach EINEM Frame wieder deaktivieren
+    requestAnimationFrame(() => {
+      justFinishedSpeaking = false;
+    });
+    requestAnimationFrame(() => {
+      mouthCooldown = false;
+    });
+  };
+
+  speechSynthesis.speak(u);
 }
 
 /* -----------------------------
