@@ -492,17 +492,17 @@ function speak(text, slow = false) {
     talking = true;
 
     lipsyncInterval = setInterval(() => {
-      t += slow ? 0.05 : 0.1;  // Tempo leicht erhöht
+      t += slow ? 0.05 : 0.1;
 
       // --- Basisöffnung (sprechtypisch) ---
-      let jaw = Math.abs(Math.sin(t)) * 0.45;  // MAX 0.45 → natürlicher
+      let jaw = Math.abs(Math.sin(t)) * 0.45;
 
       // --- kleine Unregelmäßigkeit ---
-      jaw += (Math.random() * 0.15 - 0.07);  // -0.07 bis +0.07
-      jaw = Math.min(Math.max(jaw, 0), 0.45); // clamp 0–0.45
+      jaw += (Math.random() * 0.15 - 0.07);
+      jaw = Math.min(Math.max(jaw, 0), 0.45);
 
-      // --- gelegentliche Mikro-Pause (sehr subtil) ---
-      if (Math.random() < 0.05) jaw *= 0.3;  // alle ~20 Frames → kurz Pause
+      // --- gelegentliche Mikro-Pause ---
+      if (Math.random() < 0.05) jaw *= 0.3;
 
       const wide = jaw * 0.35;
       const puck = jaw * 0.22;
@@ -510,28 +510,31 @@ function speak(text, slow = false) {
       setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
-
-    }, 35); // leicht schneller → wirkt weniger künstlich
+    }, 35);
   };
-u.onend = () => {
-  talking = false;
-  clearInterval(lipsyncInterval);
-  lipsyncInterval = null;
 
-  // --- EINZIGER sanfter Rücksprung ---
-  const startJaw  = getBlendshape(jawOpenIndex);
-  const startWide = getBlendshape(mouthWideIndex);
-  const startPuck = getBlendshape(mouthPuckerIndex);
 
-  // EIN Frame ausblenden → glatter Übergang
-  requestAnimationFrame(() => {
-    setBlendshape(jawOpenIndex,  lerp(startJaw,  0.08, 0.8));   // sofort fast Idle
-    setBlendshape(mouthWideIndex, lerp(startWide, 0,    0.8));
-    setBlendshape(mouthPuckerIndex, lerp(startPuck, 0,  0.8));
-  });
-};  // ✔ Ende von u.onend
+  u.onend = () => {
+    talking = false;
+    clearInterval(lipsyncInterval);
+    lipsyncInterval = null;
 
-} // ✔ Ende der SPEAK-FUNKTION
+    // --- EIN Frame sanft zurück in Idle ---
+    const startJaw  = getBlendshape(jawOpenIndex);
+    const startWide = getBlendshape(mouthWideIndex);
+    const startPuck = getBlendshape(mouthPuckerIndex);
+
+    requestAnimationFrame(() => {
+      setBlendshape(jawOpenIndex,  lerp(startJaw,  0.08, 0.8));
+      setBlendshape(mouthWideIndex, lerp(startWide, 0,    0.8));
+      setBlendshape(mouthPuckerIndex, lerp(startPuck, 0,  0.8));
+    });
+  };
+
+  // 🔥 WICHTIG! → MUSS drin sein, SONST spricht er nicht:
+  speechSynthesis.speak(u);
+}  // Ende SPEAK
+
 
 /* -----------------------------
    RESIZE
