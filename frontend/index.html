@@ -430,7 +430,6 @@ document.getElementById("micBtn").onclick = () => {
   STATE = "listen";
   recognition.start();
 };
-
 /* -----------------------------
    1) MÄNNLICHE STIMME FEST SETZEN  (GLOBAL!)
 ----------------------------- */
@@ -450,10 +449,27 @@ function setMaleVoice() {
 
 speechSynthesis.onvoiceschanged = setMaleVoice;
 setMaleVoice();
+
+/* --------------------------------
+   WICHTIG: Diese Funktion muss
+   VOR speak() im Code stehen:
+----------------------------------- */
+function setBlendshape(index, value) {
+  if (!model) return;
+  model.traverse(obj => {
+    if (obj.isMesh && obj.morphTargetInfluences && index !== null) {
+      obj.morphTargetInfluences[index] = value;
+    }
+  });
+}
+
+/* -----------------------------
+   SPEAK – Natürlicher
+----------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
-  u.rate = slow ? 0.6 : 1.0;
+  u.rate = slow ? 0.75 : 1.1;
   if (maleVoice) u.voice = maleVoice;
 
   let lipsyncInterval = null;
@@ -463,21 +479,19 @@ function speak(text, slow = false) {
     talking = true;
 
     lipsyncInterval = setInterval(() => {
-      t += slow ? 0.016 : 0.028;   // langsamer Zeitverlauf
+      t += slow ? 0.05 : 0.09;
 
-      // 🧘 Ruhiger, fließender Sprechrhythmus
-      let jaw = Math.abs(Math.sin(t)) * 0.55; // Grundbewegung
-      jaw += Math.abs(Math.sin(t * 0.35)) * 0.1; // leichte Nuance
+      let jaw = Math.abs(Math.sin(t)) * 0.6;       // Grundöffnung
+      let emphasis = Math.abs(Math.sin(t * 0.5)) * 0.25;
+      jaw += emphasis;                             // kleine Betonungen
 
-      // 👍 KEIN random() mehr → deutlich ruhiger
-      const wide = jaw * 0.25;
-      const puck = jaw * 0.18;
+      const wide = jaw * 0.35;
+      const puck = jaw * 0.22;
 
       setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
-
-    }, 40); // ~25 FPS
+    }, 40);  // ca. 25 FPS
   };
 
   u.onend = () => {
@@ -490,11 +504,16 @@ function speak(text, slow = false) {
       setBlendshape(mouthWideIndex, 0);
       setBlendshape(mouthPuckerIndex, 0);
       clearInterval(fadeOut);
-    }, 100);
+    }, 120);
   };
 
   speechSynthesis.speak(u);
 }
+
+/* -----------------------------
+   RESIZE
+----------------------------- */
+
 /* -----------------------------
    RESIZE
 ----------------------------- */
