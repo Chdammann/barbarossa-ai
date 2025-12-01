@@ -285,14 +285,14 @@ if (!hmNeigen && !rising) {
     0.018
   );
 }
-  // 🟢 OpenAI TTS steuert Lippen – animate greift NICHT mehr ein.
-// (nur wenn NICHT talking, Mund neutral halten)
+ // 🟢 OpenAI TTS / SpeechSynthesis steuern Lippen
+// Animate greift NICHT ein, solange talking = true!
 if (!talking) {
-  setBlendshape(jawOpenIndex, 0);
+  // hier nur Idle-Mundhaltung, sobald NICHT gesprochen wird:
+  setBlendshape(jawOpenIndex, 0.1);  // leicht offen (Atmung)
   setBlendshape(mouthWideIndex, 0);
   setBlendshape(mouthPuckerIndex, 0);
 }
-
 renderer.render(scene, camera);
 }
   
