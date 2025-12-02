@@ -496,7 +496,7 @@ function getBlendshape(index) {
 }
 
 /* --------------------------------
-   SPEAK – ANTI-ZITTER, NATÜRLICH & MIT PAUSEN
+   SPEAK – ANTI-ZITTER, NATÜRLICH & MIT PAUSEN UND SPEZIFISCHEN LAUTEN
 ----------------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
@@ -505,13 +505,19 @@ function speak(text, slow = false) {
   if (maleVoice) u.voice = maleVoice;
 
   let lipsyncInterval = null;
-  let t = 0;           // schneller Oszillator
+  let t = 0;           // schneller Oszillator für Basisbewegung
   let w = 0;           // langsamer Oszillator für Betonung
+  let pauseDuration = 0;  // Dauer der Pause
+  let inPause = false;    // Steuerung für Mikropause
+  let lastPauseTime = 0;  // Zeit des letzten Pause-Starts
 
-  // Neue Variablen zur Steuerung der Pausen
-  let inPause = false;
-  let pauseDuration = 0; // Dauer der Pause
-  let lastPauseTime = 0; // Zeit des letzten Pause-Starts
+  // Variablen für spezifische Lippenbewegungen
+  const lipsyncConfig = {
+    P: 0.35, // starker Mundschluss für P
+    M: 0.35, // starker Mundschluss für M
+    O: 0.48, // breite Mundöffnung für O
+    A: 0.45, // sehr breite Mundöffnung für A
+  };
 
   u.onstart = () => {
     talking = true;
@@ -538,15 +544,30 @@ function speak(text, slow = false) {
       jaw = Math.min(Math.max(jaw, 0), 0.48);
 
       // --------------------------------------
-      //   3) Mundformen
+      //   3) SPEZIFISCHE LAUTBEWEGUNGEN (P, M, O, A)
       // --------------------------------------
-      const wide = jaw * 0.34;   // A/E-Silben
-      const puck = jaw * 0.18;   // O/U-Silben
+      // Bestimme spezifische Lippenbewegungen je nach Wortlaut
+      let mouthShape = jaw;
+      if (text.match(/[Pp]/)) {
+        mouthShape = lipsyncConfig.P; // P → starker Mundschluss
+      } else if (text.match(/[Mm]/)) {
+        mouthShape = lipsyncConfig.M; // M → starker Mundschluss
+      } else if (text.match(/[Oo]/)) {
+        mouthShape = lipsyncConfig.O; // O → breitere Mundöffnung
+      } else if (text.match(/[Aa]/)) {
+        mouthShape = lipsyncConfig.A; // A → sehr breite Mundöffnung
+      }
+
+      // --------------------------------------
+      //   4) Mundformen
+      // --------------------------------------
+      const wide = mouthShape * 0.34;   // A/E-Silben
+      const puck = mouthShape * 0.18;   // O/U-Silben
       const smile = Math.max(0, Math.sin(t * 0.6) * 0.1); // Smiles (leichtes Lächeln bei Sprechbewegungen)
       const frown = Math.max(0, Math.sin(t * 0.6 + Math.PI) * 0.1); // Frown (leichtes Zucken für Unregelmäßigkeiten)
 
       // --------------------------------------
-      //   4) Mikropausen
+      //   5) Mikropausen
       // --------------------------------------
       const currentTime = performance.now();
       if (currentTime - lastPauseTime > pauseDuration && Math.random() < 0.05 && !inPause) {
@@ -561,9 +582,9 @@ function speak(text, slow = false) {
       }
 
       // --------------------------------------
-      //   5) SETZEN – jitterfrei
+      //   6) SETZEN – jitterfrei
       // --------------------------------------
-      setBlendshape(jawOpenIndex, jaw);
+      setBlendshape(jawOpenIndex, mouthShape);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
       setBlendshape(mouthSmileIndex, smile);  // Smile hinzufügen
@@ -596,6 +617,7 @@ function speak(text, slow = false) {
 
   speechSynthesis.speak(u);
 }
+
 
 
 /* -----------------------------
