@@ -544,9 +544,8 @@ function speak(text, slow = false) {
       // --------------------------------------
       //   3) SPEZIFISCHE LAUTBEWEGUNGEN (P, M, O, A)
       // --------------------------------------
-      let mouthShape = jaw;
-
       // Bestimme spezifische Lippenbewegungen je nach Wortlaut
+      let mouthShape = jaw;
       if (text.match(/[Pp]/)) {
         mouthShape = lipsyncConfig.P; // P → starker Mundschluss
       } else if (text.match(/[Mm]/)) {
