@@ -495,17 +495,17 @@ speechSynthesis.onvoiceschanged = setMaleVoice;
 setMaleVoice();
 
 /* --------------------------------
-   SPEAK – STABIL, RUHIG, REALISTISCH
+   SPEAK – STABIL, OHNE ZITTERN
 ----------------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
-  u.rate = slow ? 0.8 : 1.05;
+  u.rate = slow ? 0.75 : 1.1;
   if (maleVoice) u.voice = maleVoice;
 
   let lipsyncInterval = null;
-  let t = 0;     // Basisbewegung
-  let w = 0;     // Betonung
+  let t = 0;  // Zeitparameter für die Mundbewegung
+  let w = 0;  // langsamere Welle für leichte Betonung
 
   u.onstart = () => {
     talking = true;
@@ -513,48 +513,50 @@ function speak(text, slow = false) {
     justFinishedSpeaking = false;
 
     lipsyncInterval = setInterval(() => {
-      t += slow ? 0.05 : 0.085;
-      w += slow ? 0.02 : 0.04;
+      // Zeitachsen – bewusst glatt, ohne Zufalls-Sprünge
+      t += slow ? 0.045 : 0.09;
+      w += slow ? 0.02  : 0.04;
 
-      // --- 1) Basisöffnung: weich, NIE negativ ---
-      let jaw = Math.max(0, Math.sin(t) * 0.32);
+      // 1) Basisöffnung: weich schwingende Kieferbewegung
+      // Wertebereich ca. 0.10 – 0.50
+      const base = 0.10 + 0.30 * (0.5 * (1 + Math.sin(t)));      // weiches „Auf/Zu“
+      const emphasis = 0.10 * (0.5 * (1 + Math.sin(w * 0.7)));   // langsame Betonung
+      let jaw = base + emphasis;
 
-      // --- 2) sanfte Betonung ---
-      jaw += Math.sin(w) * 0.10;
+      // Begrenzen – keine Extremwerte
+      jaw = Math.min(Math.max(jaw, 0.0), 0.55);
 
-      // Begrenzen
-      jaw = Math.min(Math.max(jaw, 0), 0.45);
+      // 2) Mundform (Wide/Pucker) auf Basis der Öffnung
+      const wide  = jaw * 0.40;   // A/E
+      const puck  = jaw * 0.22;   // O/U
 
-      // --- 3) Mundformen aus jaw ableiten ---
-      const wide = jaw * 0.30;
-      const puck = jaw * 0.16;
-      const smile = 0;   // deaktiviert → stabil
-      const frown = 0;   // deaktiviert → stabil
+      // 3) Smile / Frown sehr dezent, nur für kleine Unregelmäßigkeiten
+      const smile = 0.08 * (0.5 * (1 + Math.sin(t * 0.9)));
+      const frown = 0.06 * (0.5 * (1 + Math.sin(t * 0.7 + Math.PI)));
 
-      // --- 4) Setzen ---
+      // 4) Setzen – OHNE Random, daher kein Zittern
       setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
       setBlendshape(mouthSmileIndex, smile);
       setBlendshape(mouthFrownIndex, frown);
 
-    }, 38);  // sauber synchronisiert
+    }, 38); // ~26 FPS → weich genug, keine Flackerorgie
   };
-
 
   u.onend = () => {
     clearInterval(lipsyncInterval);
     lipsyncInterval = null;
     talking = false;
 
-    // sofort zurück in ruhiges Idle
+    // Sofort in Idle – einmaliger sauberer Sprung
     setBlendshape(jawOpenIndex, 0.05);
-    setBlendshape(mouthWideIndex, 0);
-    setBlendshape(mouthPuckerIndex, 0);
-    setBlendshape(mouthSmileIndex, 0);
-    setBlendshape(mouthFrownIndex, 0);
+    setBlendshape(mouthWideIndex, 0.0);
+    setBlendshape(mouthPuckerIndex, 0.0);
+    setBlendshape(mouthSmileIndex, 0.0);
+    setBlendshape(mouthFrownIndex, 0.0);
 
-    // Mini-Cooldown gegen Nachklappern
+    // Kurz Cooldown, damit animate() nicht im selben Moment dazwischenfunkt
     justFinishedSpeaking = true;
     mouthCooldown = true;
     setTimeout(() => {
