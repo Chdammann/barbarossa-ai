@@ -334,16 +334,6 @@ if (!hmNeigen && !rising) {
     0.018
   );
 }
-
-// 🟢 OpenAI TTS / SpeechSynthesis steuern Lippen
-if (!talking) {
-  // hier nur Idle-Mundhaltung, sobald NICHT gesprochen wird:
-  setBlendshape(jawOpenIndex, 0.1);  // leicht offen für Atmung
-  setBlendshape(mouthWideIndex, 0);
-  setBlendshape(mouthPuckerIndex, 0);
-  setBlendshape(mouthSmileIndex, 0);  // Smile auf 0 setzen
-  setBlendshape(mouthFrownIndex, 0);  // Frown auf 0 setzen
-}
 renderer.render(scene, camera);
 }
 
