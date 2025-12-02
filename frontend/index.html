@@ -496,7 +496,7 @@ function getBlendshape(index) {
 }
 
 /* --------------------------------
-   SPEAK – ANTI-ZITTER, NATÜRLICH & MIT SPEZIFISCHEN LAUTEN
+   SPEAK – ANTI-ZITTER, NATÜRLICH & MIT PAUSEN
 ----------------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
@@ -505,18 +505,13 @@ function speak(text, slow = false) {
   if (maleVoice) u.voice = maleVoice;
 
   let lipsyncInterval = null;
-  let t = 0;           // schneller Oszillator für die Basisbewegung
+  let t = 0;           // schneller Oszillator
   let w = 0;           // langsamer Oszillator für Betonung
-  let pauseDuration = 0;  // Dauer der Pause
-  let inPause = false;    // Steuerung für Mikropause
 
-  // Variablen für spezifische Lippenbewegungen
-  const lipsyncConfig = {
-    P: 0.35, // starker Mundschluss für P
-    M: 0.35, // starker Mundschluss für M
-    O: 0.48, // breite Mundöffnung für O
-    A: 0.45, // sehr breite Mundöffnung für A
-  };
+  // Neue Variablen zur Steuerung der Pausen
+  let inPause = false;
+  let pauseDuration = 0; // Dauer der Pause
+  let lastPauseTime = 0; // Zeit des letzten Pause-Starts
 
   u.onstart = () => {
     talking = true;
@@ -524,6 +519,7 @@ function speak(text, slow = false) {
     justFinishedSpeaking = false;
 
     lipsyncInterval = setInterval(() => {
+      // Zeitachsen (Zittern entsteht bei zu schnellen Sprüngen → hier sauber!)
       t += slow ? 0.05 : 0.09;
       w += slow ? 0.02 : 0.045;
 
@@ -542,31 +538,18 @@ function speak(text, slow = false) {
       jaw = Math.min(Math.max(jaw, 0), 0.48);
 
       // --------------------------------------
-      //   3) SPEZIFISCHE LAUTBEWEGUNGEN (P, M, O, A)
+      //   3) Mundformen
       // --------------------------------------
-      // Bestimme spezifische Lippenbewegungen je nach Wortlaut
-      let mouthShape = jaw;
-      if (text.match(/[Pp]/)) {
-        mouthShape = lipsyncConfig.P; // P → starker Mundschluss
-      } else if (text.match(/[Mm]/)) {
-        mouthShape = lipsyncConfig.M; // M → starker Mundschluss
-      } else if (text.match(/[Oo]/)) {
-        mouthShape = lipsyncConfig.O; // O → breitere Mundöffnung
-      } else if (text.match(/[Aa]/)) {
-        mouthShape = lipsyncConfig.A; // A → sehr breite Mundöffnung
-      }
+      const wide = jaw * 0.34;   // A/E-Silben
+      const puck = jaw * 0.18;   // O/U-Silben
+      const smile = Math.max(0, Math.sin(t * 0.6) * 0.1); // Smiles (leichtes Lächeln bei Sprechbewegungen)
+      const frown = Math.max(0, Math.sin(t * 0.6 + Math.PI) * 0.1); // Frown (leichtes Zucken für Unregelmäßigkeiten)
 
       // --------------------------------------
-      //   4) Mundformen
-      // --------------------------------------
-      const wide = mouthShape * 0.34;   // A/E-Silben
-      const puck = mouthShape * 0.18;   // O/U-Silben
-
-      // --------------------------------------
-      //   5) Mikropausen
+      //   4) Mikropausen
       // --------------------------------------
       const currentTime = performance.now();
-      if (!inPause && currentTime - lastPauseTime > pauseDuration && Math.random() < 0.05) {
+      if (currentTime - lastPauseTime > pauseDuration && Math.random() < 0.05 && !inPause) {
         inPause = true;
         pauseDuration = Math.random() * 120 + 50; // zufällige Pause zwischen 50ms und 170ms
         lastPauseTime = currentTime;
@@ -578,11 +561,13 @@ function speak(text, slow = false) {
       }
 
       // --------------------------------------
-      //   6) SETZEN – jitterfrei
+      //   5) SETZEN – jitterfrei
       // --------------------------------------
-      setBlendshape(jawOpenIndex, mouthShape);
+      setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
+      setBlendshape(mouthSmileIndex, smile);  // Smile hinzufügen
+      setBlendshape(mouthFrownIndex, frown);  // Frown hinzufügen
 
     }, 38);  // (~26 FPS) synchronisiert → KEIN Flackern
   };
@@ -596,6 +581,8 @@ function speak(text, slow = false) {
     setBlendshape(jawOpenIndex, 0.05);
     setBlendshape(mouthWideIndex, 0);
     setBlendshape(mouthPuckerIndex, 0);
+    setBlendshape(mouthSmileIndex, 0);  // Smile auf 0 setzen
+    setBlendshape(mouthFrownIndex, 0);  // Frown auf 0 setzen
 
     // Kleinster Cooldown zur Verhinderung von Frame-Rauschen
     justFinishedSpeaking = true;
