@@ -495,83 +495,92 @@ function getBlendshape(index) {
   return v;
 }
 
-/* --------------------------------
-   SPEAK – ANTI-ZITTER, NATÜRLICH
------------------------------------ */
+/* -----------------------------
+   SPEAK – NATÜRLICH, KRÄFTIG & ZITTERFREI
+   mit allen Blendshapes
+----------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
-  u.rate = slow ? 0.75 : 1.1;
+  u.rate = slow ? 0.75 : 1.15;
   if (maleVoice) u.voice = maleVoice;
 
   let lipsyncInterval = null;
-  let t = 0;           // schneller Oszillator
-  let w = 0;           // langsamer Oszillator für Betonung
+  let t = 0;
 
   u.onstart = () => {
     talking = true;
-    mouthCooldown = false;
     justFinishedSpeaking = false;
+    mouthCooldown = false;
 
     lipsyncInterval = setInterval(() => {
-      // Zeitachsen (Zittern entsteht bei zu schnellen Sprüngen → hier sauber!)
-      t += slow ? 0.05 : 0.09;
-      w += slow ? 0.02 : 0.045;
+      t += slow ? 0.06 : 0.12;    // schneller → natürlicher Sprecherhythmus
 
-      // --------------------------------------
-      //   1) BASISÖFFNUNG – weich & stabil
-      // --------------------------------------
-      let jaw = Math.max(0, Math.sin(t) * 0.38); // NIE negativ → kein Klappern
+      /* ---------------------------
+         1) BASIS JAW OPEN
+      --------------------------- */
+      let jaw = Math.abs(Math.sin(t)) * 0.70;  // kräftiger
+      jaw += (Math.random() * 0.12 - 0.06);     // Variation ohne Zittern
 
-      // --------------------------------------
-      //   2) WORTBETONUNG – Low-Frequency Noise
-      // --------------------------------------
-      const emphasis = Math.sin(w) * 0.12;  // sehr weich, keine Sprünge
-      jaw += emphasis;
+      // nie komplett zu (sonst Roboter)
+      if (jaw < 0.18) jaw = 0.18;
+      if (jaw > 0.85) jaw = 0.85;
 
-      // Begrenzen
-      jaw = Math.min(Math.max(jaw, 0), 0.48);
+      /* ---------------------------
+         2) MOUTH WIDE & PUCKER
+      --------------------------- */
+      const wide  = jaw * 0.33;
+      const puck  = jaw * 0.20;
 
-      // --------------------------------------
-      //   3) Mundformen
-      // --------------------------------------
-      const wide = jaw * 0.34;   // A/E-Silben
-      const puck = jaw * 0.18;   // O/U-Silben
-      const smile = Math.max(0, Math.sin(t * 0.6) * 0.1); // Smiles (leichtes Lächeln bei Sprechbewegungen)
-      const frown = Math.max(0, Math.sin(t * 0.6 + Math.PI) * 0.1); // Frown (leichtes Zucken für Unregelmäßigkeiten)
+      /* ---------------------------
+         3) SMILE / FROWN als
+            "Weichzeichner"
+      --------------------------- */
+      // Smile: leichte Aufhellung der Artikulation
+      const smile = jaw * 0.15;
 
-      // --------------------------------------
-      //   4) SETZEN – jitterfrei
-      // --------------------------------------
-      setBlendshape(jawOpenIndex, jaw);
-      setBlendshape(mouthWideIndex, wide);
-      setBlendshape(mouthPuckerIndex, puck);
-      setBlendshape(mouthSmileIndex, smile);  // neues Smile hinzufügen
-      setBlendshape(mouthFrownIndex, frown);  // neues Frown hinzufügen
+      // Frown: Konsonanten (B/M/P/K/etc)
+      const frown = (Math.sin(t * 2) > 0 ? 0.12 : 0.02) * jaw;
 
-    }, 38);  // (~26 FPS) synchronisiert → KEIN Flackern
+      /* ---------------------------
+         4) Blendshapes setzen
+      --------------------------- */
+      setBlendshape(jawOpenIndex,      jaw);
+      setBlendshape(mouthWideIndex,    wide);
+      setBlendshape(mouthPuckerIndex,  puck);
+      setBlendshape(mouthSmileIndex,   smile);
+      setBlendshape(mouthFrownIndex,   frown);
+
+    }, 33); // ~30 FPS für natürliche Bewegung
   };
 
+
+  /* -----------------------------
+     ENDE → 100% Stabil & sauber
+  ----------------------------- */
   u.onend = () => {
+    talking = false;
     clearInterval(lipsyncInterval);
     lipsyncInterval = null;
-    talking = false;
 
-    // Sofort in Idle – jitterfrei
-    setBlendshape(jawOpenIndex, 0.05);
-    setBlendshape(mouthWideIndex, 0);
-    setBlendshape(mouthPuckerIndex, 0);
-    setBlendshape(mouthSmileIndex, 0);  // Smile auf 0 setzen
-    setBlendshape(mouthFrownIndex, 0);  // Frown auf 0 setzen
+    // sofort auf Idle-Mund
+    setBlendshape(jawOpenIndex,      0.05);
+    setBlendshape(mouthWideIndex,    0.0);
+    setBlendshape(mouthPuckerIndex,  0.0);
+    setBlendshape(mouthSmileIndex,   0.0);
+    setBlendshape(mouthFrownIndex,   0.0);
 
-    // Kleinster Cooldown zur Verhinderung von Frame-Rauschen
+    // 2 Frames Cooldown → verhindert Nachklappern absolut
     justFinishedSpeaking = true;
     mouthCooldown = true;
 
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       justFinishedSpeaking = false;
+    });
+
+    requestAnimationFrame(() => {
       mouthCooldown = false;
-    }, 25);
+    });
   };
 
   speechSynthesis.speak(u);
