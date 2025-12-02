@@ -464,9 +464,12 @@ speechSynthesis.onvoiceschanged = setMaleVoice;
 setMaleVoice();
 
 /* --------------------------------
-   WICHTIG: Diese Funktion muss
-   VOR speak() im Code stehen:
+   BENÖTIGT für glatte Übergänge:
 ----------------------------------- */
+function lerp(a, b, t) { 
+  return a + (b - a) * t;
+}
+
 function setBlendshape(index, value) {
   if (!model) return;
   model.traverse(obj => {
@@ -475,23 +478,20 @@ function setBlendshape(index, value) {
     }
   });
 }
-function lerp(a, b, t) {  // linearer Übergang
-  return a + (b - a) * t;
-}
 
 function getBlendshape(index) {
-  let value = 0;
+  let v = 0;
   model.traverse(obj => {
     if (obj.isMesh && obj.morphTargetInfluences) {
-      value = obj.morphTargetInfluences[index] ?? 0;
+      v = obj.morphTargetInfluences[index] ?? v;
     }
   });
-  return value;
+  return v;
 }
 
-/* -----------------------------
-   SPEAK – NATÜRLICH & STABIL
------------------------------ */
+/* --------------------------------
+   SPEAK – ANTI-ZITTER, NATÜRLICH
+----------------------------------- */
 function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
@@ -499,7 +499,8 @@ function speak(text, slow = false) {
   if (maleVoice) u.voice = maleVoice;
 
   let lipsyncInterval = null;
-  let t = 0;
+  let t = 0;           // schneller Oszillator
+  let w = 0;           // langsamer Oszillator für Betonung
 
   u.onstart = () => {
     talking = true;
@@ -507,47 +508,62 @@ function speak(text, slow = false) {
     justFinishedSpeaking = false;
 
     lipsyncInterval = setInterval(() => {
-      t += slow ? 0.05 : 0.1;
+      // Zeitachsen (Zittern entsteht bei zu schnellen Sprüngen → hier sauber!)
+      t += slow ? 0.05 : 0.09;
+      w += slow ? 0.02 : 0.045;
 
-      let jaw = Math.abs(Math.sin(t)) * 0.45;
-      jaw += (Math.random() * 0.12 - 0.06);
-      jaw = Math.min(Math.max(jaw, 0), 0.45);
-      if (Math.random() < 0.03) jaw *= 0.25;
+      // --------------------------------------
+      //   1) BASISÖFFNUNG – weich & stabil
+      // --------------------------------------
+      let jaw = Math.max(0, Math.sin(t) * 0.38); // NIE negativ → kein Klappern
 
-      const wide = jaw * 0.32;
-      const puck = jaw * 0.18;
+      // --------------------------------------
+      //   2) WORTBETONUNG – Low-Frequency Noise
+      // --------------------------------------
+      const emphasis = Math.sin(w) * 0.12;  // sehr weich, keine Sprünge
+      jaw += emphasis;
 
+      // Begrenzen
+      jaw = Math.min(Math.max(jaw, 0), 0.48);
+
+      // --------------------------------------
+      //   3) Mundformen
+      // --------------------------------------
+      const wide = jaw * 0.34;   // A/E-Silben
+      const puck = jaw * 0.18;   // O/U-Silben
+
+      // --------------------------------------
+      //   4) SETZEN – jitterfrei
+      // --------------------------------------
       setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
-    }, 38);
+
+    }, 38);  // (~26 FPS) synchronisiert → KEIN Flackern
   };
 
-u.onend = () => {
-  clearInterval(lipsyncInterval);
-  lipsyncInterval = null;
-  talking = false;
+  u.onend = () => {
+    clearInterval(lipsyncInterval);
+    lipsyncInterval = null;
+    talking = false;
 
-  // Sofort in Idle
-  setBlendshape(jawOpenIndex, 0.05);
-  setBlendshape(mouthWideIndex, 0);
-  setBlendshape(mouthPuckerIndex, 0);
+    // Sofort in Idle – jitterfrei
+    setBlendshape(jawOpenIndex, 0.05);
+    setBlendshape(mouthWideIndex, 0);
+    setBlendshape(mouthPuckerIndex, 0);
 
-  // Cooldown für animate(), aber micro-delay!
-  justFinishedSpeaking = true;
-  mouthCooldown = true;
+    // Kleinster Cooldown zur Verhinderung von Frame-Rauschen
+    justFinishedSpeaking = true;
+    mouthCooldown = true;
 
-  // ⏱ dieser Trick killt das Geister-Zittern:
-  setTimeout(() => {
-    justFinishedSpeaking = false;
-    mouthCooldown = false;
-  }, 20); // nur 20ms → fühlbar, aber unsichtbar
-};
+    setTimeout(() => {
+      justFinishedSpeaking = false;
+      mouthCooldown = false;
+    }, 25);
+  };
 
-  // GANZ WICHTIG!
   speechSynthesis.speak(u);
-}  // <== ENDE SPEAK – Klammern stimmen!
-
+}
 /* -----------------------------
    RESIZE
 ----------------------------- */
