@@ -81,6 +81,8 @@
 let jawOpenIndex = null;
 let mouthWideIndex = null;
 let mouthPuckerIndex = null;
+let mouthSmileIndex = null; // neu hinzugefügt
+let mouthFrownIndex = null; // neu hinzugefügt
 
 // Audio / Analyse
 let audioCtx, analyser, src;
@@ -181,23 +183,27 @@ loader.load("./avatar.glb", gltf => {
      🔎 Blendshapes AUTOMATISCH FINDEN (saubere Variante)
   -------------------------------------------------- */
   model.traverse(obj => {
-    if (obj.isMesh && obj.morphTargetDictionary) {
-      console.log("Mesh:", obj.name, obj.morphTargetDictionary);
+  if (obj.isMesh && obj.morphTargetDictionary) {
+    console.log("Mesh:", obj.name, obj.morphTargetDictionary);
 
-      for (const [name, idx] of Object.entries(obj.morphTargetDictionary)) {
-        const lower = name.toLowerCase();
+    for (const [name, idx] of Object.entries(obj.morphTargetDictionary)) {
+      const lower = name.toLowerCase();
 
-        if (lower.includes("jaw"))   jawOpenIndex = idx;
-        if (lower.includes("wide"))  mouthWideIndex = idx;
-        if (lower.includes("puck"))  mouthPuckerIndex = idx;
-      }
+      if (lower.includes("jaw")) jawOpenIndex = idx;
+      if (lower.includes("wide")) mouthWideIndex = idx;
+      if (lower.includes("puck")) mouthPuckerIndex = idx;
+      if (lower.includes("smile")) mouthSmileIndex = idx; // Neu hinzugefügt
+      if (lower.includes("frown")) mouthFrownIndex = idx; // Neu hinzugefügt
     }
-  });
+  }
+});
 
-  console.log("✔ FINAL Blendshape-Indices:",
-              "jawOpen =", jawOpenIndex,
-              "| mouthWide =", mouthWideIndex,
-              "| mouthPucker =", mouthPuckerIndex);
+console.log("✔ FINAL Blendshape-Indices:",
+            "jawOpen =", jawOpenIndex,
+            "| mouthWide =", mouthWideIndex,
+            "| mouthPucker =", mouthPuckerIndex,
+            "| mouthSmile =", mouthSmileIndex, // Neu hinzugefügt
+            "| mouthFrown =", mouthFrownIndex); // Neu hinzugefügt
 
   // === MODEL STARTEN ===
   scene.add(model);
@@ -531,6 +537,8 @@ function speak(text, slow = false) {
       // --------------------------------------
       const wide = jaw * 0.34;   // A/E-Silben
       const puck = jaw * 0.18;   // O/U-Silben
+      const smile = Math.max(0, Math.sin(t * 0.6) * 0.1); // Smiles (leichtes Lächeln bei Sprechbewegungen)
+      const frown = Math.max(0, Math.sin(t * 0.6 + Math.PI) * 0.1); // Frown (leichtes Zucken für Unregelmäßigkeiten)
 
       // --------------------------------------
       //   4) SETZEN – jitterfrei
@@ -538,6 +546,8 @@ function speak(text, slow = false) {
       setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
+      setBlendshape(mouthSmileIndex, smile);  // neues Smile hinzufügen
+      setBlendshape(mouthFrownIndex, frown);  // neues Frown hinzufügen
 
     }, 38);  // (~26 FPS) synchronisiert → KEIN Flackern
   };
@@ -551,6 +561,8 @@ function speak(text, slow = false) {
     setBlendshape(jawOpenIndex, 0.05);
     setBlendshape(mouthWideIndex, 0);
     setBlendshape(mouthPuckerIndex, 0);
+    setBlendshape(mouthSmileIndex, 0);  // Smile auf 0 setzen
+    setBlendshape(mouthFrownIndex, 0);  // Frown auf 0 setzen
 
     // Kleinster Cooldown zur Verhinderung von Frame-Rauschen
     justFinishedSpeaking = true;
@@ -564,6 +576,7 @@ function speak(text, slow = false) {
 
   speechSynthesis.speak(u);
 }
+
 /* -----------------------------
    RESIZE
 ----------------------------- */
