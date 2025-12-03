@@ -213,11 +213,13 @@ loader.load("./avatar.glb", gltf => {
 /* --------------------------------------------------
    BLENDSHAPE SETZEN – GLOBAL & VOR SPEAK EINBINDEN!
 -------------------------------------------------- */
+// Setze Blendshapes nur innerhalb des Bereichs [0, 1]
 function setBlendshape(index, value) {
-  if (index === null || !model) return;
-
+  if (!model) return;
+  // Begrenze den Wert auf den Bereich [0, 1]
+  value = Math.min(Math.max(value, 0), 1);
   model.traverse(obj => {
-    if (obj.isMesh && obj.morphTargetInfluences) {
+    if (obj.isMesh && obj.morphTargetInfluences && index !== null) {
       obj.morphTargetInfluences[index] = value;
     }
   });
@@ -503,7 +505,7 @@ function speak(text, slow = false) {
   u.rate = slow ? 0.75 : 1.1;
   if (maleVoice) u.voice = maleVoice;
 
-  let lipsyncInterval = null;  // lipsyncInterval als let statt const
+  let lipsyncInterval = null;  
   let t = 0;
 
   u.onstart = () => {
@@ -526,17 +528,28 @@ function speak(text, slow = false) {
       let smile = 0; // mouthSmileIndex für A
       let frown = 0; // mouthFrownIndex für O und M/P
 
-      if (text.match(/[aáäà]/i)) {  // Wenn "A" im Text vorkommt
+      // Überprüfung, ob "A" im Text ist
+      if (text.match(/[aáäà]/i)) {  
         smile = 0.5;  // Mund für A weiten
+        console.log("Detected 'A' in text, smile activated.");  // Debugging Log
       }
-      if (text.match(/[oóö]/i)) {  // Wenn "O" im Text vorkommt
+
+      // Überprüfung, ob "O" im Text ist
+      if (text.match(/[oóö]/i)) {  
         frown = 0.5;  // Mund für O öffnen
+        console.log("Detected 'O' in text, frown activated.");  // Debugging Log
       }
-      if (text.match(/[m]/i)) {    // Wenn "M" im Text vorkommt
+
+      // Überprüfung, ob "M" im Text ist
+      if (text.match(/[m]/i)) {    
         puck = 0.25; // Leichtes Schließen für "M"
+        console.log("Detected 'M' in text, puck activated.");  // Debugging Log
       }
-      if (text.match(/[p]/i)) {    // Wenn "P" im Text vorkommt
+
+      // Überprüfung, ob "P" im Text ist
+      if (text.match(/[p]/i)) {    
         wide = 0.2;  // Mund leicht öffnen für "P"
+        console.log("Detected 'P' in text, wide activated.");  // Debugging Log
       }
 
       // Setze Blendshapes für Lippenbewegungen
@@ -552,6 +565,8 @@ function speak(text, slow = false) {
     clearInterval(lipsyncInterval);
     lipsyncInterval = null;
     talking = false;
+
+    console.log("Finished speaking, returning to idle.");  // Debugging Log
 
     // Sofort in Idle
     setBlendshape(jawOpenIndex, 0.05);
@@ -574,6 +589,7 @@ function speak(text, slow = false) {
   // GANZ WICHTIG!
   speechSynthesis.speak(u);
 }  // <== ENDE SPEAK – Klammern stimmen!
+
 
 /* -----------------------------
    RESIZE
