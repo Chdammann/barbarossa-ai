@@ -519,25 +519,35 @@ function speak(text, slow = false) {
     lipsyncInterval = setInterval(() => {
       t += slow ? 0.05 : 0.1;
 
+      // Jaw (Kieferöffnung, beeinflusst durch A-Laute)
       let jaw = Math.abs(Math.sin(t)) * 0.45;
       jaw += (Math.random() * 0.12 - 0.06);
       jaw = Math.min(Math.max(jaw, 0), 0.45);
+      
+      // Minderung von Zittern: Zufallseffekt reduzieren
       if (Math.random() < 0.03) jaw *= 0.25;
 
+      // Breite und Pucker (Mundöffnung und -zusammenziehen)
       const wide = jaw * 0.32;
       const puck = jaw * 0.18;
 
-      // 🆕 Hinzugefügte Blendshapes
+      // 🆕 Blendshapes für A, O, M, P
       const smile = Math.abs(Math.sin(t)) * 0.2;  // Lächeln (A-Laut)
       const frown = Math.abs(Math.cos(t)) * 0.2;  // Falten (O, M, P-Laute)
+
+      // Sorgfältige Anpassung der Laute (für A, O, M, P)
+      const mLaute = Math.sin(t) * 0.1;  // P-Laute und M-Laute - leichter Mundschluss
+      const aOLaute = Math.abs(Math.cos(t)) * 0.2;  // O-Laute und A-Laute - weiter Öffnen
 
       // Blendshapes setzen
       setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
-      setBlendshape(mouthSmileIndex, smile);  // 🆕 Lächeln hinzufügen
-      setBlendshape(mouthFrownIndex, frown);  // 🆕 Falten hinzufügen
-    }, 38);
+      setBlendshape(mouthSmileIndex, smile);  // Lächeln (A-Laut)
+      setBlendshape(mouthFrownIndex, frown);  // Falten (O, M, P-Laute)
+      setBlendshape(mouthPuckerIndex, mLaute);  // P-Laute / M-Laute - stärkerer Mundschluss
+      setBlendshape(mouthWideIndex, aOLaute);  // O und A Laute - weiter Öffnen
+    }, 50);  // Intervall leicht verlängert (z.B. 50ms für flüssigere Animation)
   };
 
   u.onend = () => {
@@ -549,8 +559,8 @@ function speak(text, slow = false) {
     setBlendshape(jawOpenIndex, 0.05);
     setBlendshape(mouthWideIndex, 0);
     setBlendshape(mouthPuckerIndex, 0);
-    setBlendshape(mouthSmileIndex, 0);  // 🆕 reset mouthSmile
-    setBlendshape(mouthFrownIndex, 0);  // 🆕 reset mouthFrown
+    setBlendshape(mouthSmileIndex, 0);  // reset mouthSmile
+    setBlendshape(mouthFrownIndex, 0);  // reset mouthFrown
 
     // Cooldown für animate(), aber micro-delay!
     justFinishedSpeaking = true;
@@ -566,6 +576,7 @@ function speak(text, slow = false) {
   // GANZ WICHTIG!
   speechSynthesis.speak(u);
 }  // <== ENDE SPEAK – Klammern stimmen!
+
 
 /* -----------------------------
    RESIZE
