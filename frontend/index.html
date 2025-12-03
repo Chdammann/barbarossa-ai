@@ -318,33 +318,72 @@ function animate() {
   requestAnimationFrame(animate);
   if (!model) return;
 
-  const now = performance.now();
-
   // 🧊 Nur Idle, wenn NICHT gerade frisch gesprochen wurde:
   if (!talking && !justFinishedSpeaking && !mouthCooldown) {
-    setBlendshape(jawOpenIndex, 0.05);  // dezente Atmung
-    setBlendshape(mouthWideIndex, 0.0);
-    setBlendshape(mouthPuckerIndex, 0.0);
-    setBlendshape(mouthSmileIndex, 0);  // reset mouthSmile
-    setBlendshape(mouthFrownIndex, 0);  // reset mouthFrown
+      setBlendshape(jawOpenIndex, 0.05);  // dezente Atmung
+      setBlendshape(mouthWideIndex, 0.0);
+      setBlendshape(mouthPuckerIndex, 0.0);
+      setBlendshape(mouthSmileIndex, 0);  // 🆕 reset mouthSmile
+      setBlendshape(mouthFrownIndex, 0);  // 🆕 reset mouthFrown
   }
 
-  // Verhindern von zu starkem Hüpfen – sanfte Atmung:
-  const breathSpeed = 0.0011 + Math.sin(now * 0.00005) * 0.0001;  // langsamer
-  const breathAmp   = 0.003 + Math.sin(now * 0.00008) * 0.002;   // noch sanftere Bewegung
+  const now = performance.now();
+  const frontalY = -Math.PI / 2;               // frontal
+  const rightY   = baseRotY - Math.PI / 2;     // Startpose rechts
+  const leftY    = frontalY + 0.25;            // Hmmm = leicht links
 
-  // Bewegung nur dann, wenn Avatar nicht wieder in Idle wechselt
-  if (!toIdlePose) {
+  // 0️⃣ START: Ausgangsposition (leicht rechts)
+  if (frontalFix) {
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, rightY, 0.08);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.08);
+    renderer.render(scene, camera);
+    return;
+  }
+
+  // 1️⃣ GREET / ANTWORTBEGINN → FRONTAL
+  if (rising) {
+    const t = (now - riseStartTime) / riseDuration;
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.06);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.06);
+    if (t >= 1) rising = false;
+  }
+
+  // 2️⃣ HMMM → LANGSAM LINKS
+  else if (hmNeigen) {
+    const t = Math.min(1, (now - hmStartTime) / hmDuration);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX + 0.25, t);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, leftY, t);
+  }
+
+  // 3️⃣ ANTWORT → FRONTAL
+  else if (STATE === "answer") {
+    model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.03);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
+  }
+
+  // 4️⃣ TALKING = SPRICHT → FRONTAL & ATMEN
+  else if (talking) {
+    model.position.y = baseY + Math.sin(now * 0.0015) * 0.008;
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.03);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
+  }
+
+  // 5️⃣ WARTET AUF FRAGE → FRONTAL
+  else if (STATE === "listen" || STATE === "greet") {
+    model.position.y = baseY + Math.sin(now * 0.0012) * 0.006;
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, frontalY, 0.03);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, 0, 0.03);
+  }
+
+  // 6️⃣ ENDE → SANFT ZURÜCK NACH RECHTS
+  else if (STATE === "idle" && !talking && !rising) {
+    const breathSpeed = 0.0011 + Math.sin(now * 0.00005) * 0.0004;
+    const breathAmp   = 0.006  + Math.sin(now * 0.00008) * 0.003;
     model.position.y  = baseY + Math.sin(now * breathSpeed) * breathAmp;
-  }
 
-  model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY, 0.03);
-  model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
-
-  // Wenn der Avatar "idle" wird, sanft zurück nach rechts
-  if (STATE === "idle" && !talking && !rising) {
-    model.position.y  = baseY + Math.sin(now * 0.0015) * 0.008;
-    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, baseRotY - Math.PI / 2, 0.03);
+    model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, rightY, 0.03);
+    model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
   }
 
   // ⭐ Sichtbare, natürliche Blickbewegungen – Version 2 (mehr Dynamik!)
@@ -367,19 +406,19 @@ function animate() {
     );
   }
 
-  // 🟢 Nur in Idle-Mundhaltung – keine TTS-Steuerung mehr notwendig
+  // 🟢 OpenAI TTS / SpeechSynthesis steuern Lippen
+  // Animate greift NICHT ein, solange talking = true!
   if (!talking) {
     // hier nur Idle-Mundhaltung, sobald NICHT gesprochen wird:
     setBlendshape(jawOpenIndex, 0.1);  // leicht offen (Atmung)
     setBlendshape(mouthWideIndex, 0);
     setBlendshape(mouthPuckerIndex, 0);
-    setBlendshape(mouthSmileIndex, 0);  // reset mouthSmile
-    setBlendshape(mouthFrownIndex, 0);  // reset mouthFrown
+    setBlendshape(mouthSmileIndex, 0);  // 🆕 reset mouthSmile
+    setBlendshape(mouthFrownIndex, 0);  // 🆕 reset mouthFrown
   }
 
   renderer.render(scene, camera);
 }
-
   /* -----------------------------
    BUTTON – GREET & LISTEN
 ----------------------------- */
@@ -482,33 +521,30 @@ function speak(text, slow = false) {
 
       // Jaw (Kieferöffnung, beeinflusst durch A-Laute)
       let jaw = Math.abs(Math.sin(t)) * 0.45;
-      jaw += (Math.random() * 0.12 - 0.06);
+      jaw += (Math.random() * 0.08 - 0.04); // Reduzierter Zufallseffekt
       jaw = Math.min(Math.max(jaw, 0), 0.45);
-      
-      // Minderung von Zittern: Zufallseffekt reduzieren
-      if (Math.random() < 0.03) jaw *= 0.25;
 
       // Breite und Pucker (Mundöffnung und -zusammenziehen)
       const wide = jaw * 0.32;
       const puck = jaw * 0.18;
 
       // 🆕 Blendshapes für A, O, M, P
-      const smile = Math.abs(Math.sin(t)) * 0.2;  // Lächeln (A-Laut)
-      const frown = Math.abs(Math.cos(t)) * 0.2;  // Falten (O, M, P-Laute)
+      const smile = Math.abs(Math.sin(t)) * 0.25;  // Lächeln (A-Laut) stärker betonen
+      const frown = Math.abs(Math.cos(t)) * 0.25;  // Falten (O, M, P-Laute) stärker betonen
 
       // Sorgfältige Anpassung der Laute (für A, O, M, P)
-      const mLaute = Math.sin(t) * 0.1;  // P-Laute und M-Laute - leichter Mundschluss
-      const aOLaute = Math.abs(Math.cos(t)) * 0.2;  // O-Laute und A-Laute - weiter Öffnen
+      const mLaute = Math.sin(t) * 0.15;  // P-Laute und M-Laute - leicht stärkerer Mundschluss
+      const aOLaute = Math.abs(Math.cos(t)) * 0.3;  // O-Laute und A-Laute - noch mehr Öffnung
 
       // Blendshapes setzen
       setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
-      setBlendshape(mouthSmileIndex, smile);  // Lächeln (A-Laut)
-      setBlendshape(mouthFrownIndex, frown);  // Falten (O, M, P-Laute)
+      setBlendshape(mouthSmileIndex, smile);  // Lächeln (A-Laut) verstärken
+      setBlendshape(mouthFrownIndex, frown);  // Falten (O, M, P-Laute) verstärken
       setBlendshape(mouthPuckerIndex, mLaute);  // P-Laute / M-Laute - stärkerer Mundschluss
       setBlendshape(mouthWideIndex, aOLaute);  // O und A Laute - weiter Öffnen
-    }, 50);  // Intervall leicht verlängert (z.B. 50ms für flüssigere Animation)
+    }, 50);  // Intervall bleibt bei 50ms für flüssigere Animation
   };
 
   u.onend = () => {
@@ -516,7 +552,7 @@ function speak(text, slow = false) {
     lipsyncInterval = null;
     talking = false;
 
-    // Sofort in Idle (sanfter Übergang der Blendshapes)
+    // Sofort in Idle
     setBlendshape(jawOpenIndex, 0.05);
     setBlendshape(mouthWideIndex, 0);
     setBlendshape(mouthPuckerIndex, 0);
@@ -532,20 +568,12 @@ function speak(text, slow = false) {
       justFinishedSpeaking = false;
       mouthCooldown = false;
     }, 20); // nur 20ms → fühlbar, aber unsichtbar
-
-    // Sicherstellen, dass Blendshapes in Ruheposition bleiben
-    setTimeout(() => {
-      setBlendshape(jawOpenIndex, 0);
-      setBlendshape(mouthWideIndex, 0);
-      setBlendshape(mouthPuckerIndex, 0);
-      setBlendshape(mouthSmileIndex, 0);
-      setBlendshape(mouthFrownIndex, 0);
-    }, 150); // eine kurze Verzögerung, um den Übergang sanft zu machen
   };
 
   // GANZ WICHTIG!
   speechSynthesis.speak(u);
 }  // <== ENDE SPEAK – Klammern stimmen!
+
 
 /* -----------------------------
    RESIZE
