@@ -343,12 +343,10 @@ if ("webkitSpeechRecognition" in window) {
   recognition.lang = "de-DE";
   recognition.continuous = false;
 
-  // Ergebnis speichern:
   recognition.onresult = e => {
     lastTranscript = e.results[0][0].transcript;
   };
 
-  // Aufnahme beendet:
   recognition.onend = () => {
     if (STATE === "listen" && lastTranscript) {
 
@@ -359,9 +357,11 @@ if ("webkitSpeechRecognition" in window) {
       hmStartTime = performance.now();
       speak("Ähm..... einen Moment", true);
 
-      // Mindestwartezeit einhalten:
+      console.log("Transitioning to 'hmmm' state."); // Debugging Log
+
       const MIN_HMMM = 4000;
       setTimeout(() => {
+        console.log("Starting to fetch the answer...");
 
         fetch("/ask", {
           method: "POST",
@@ -370,25 +370,26 @@ if ("webkitSpeechRecognition" in window) {
         })
         .then(r => r.json())
         .then(data => {
-
           // 2️⃣ ANTWORT BEGINNT → frontal
           resetMovements();
           STATE = "answer";
           rising = true;
           riseStartTime = performance.now();
-
-          // 🔁 NEUER BLOCK: TTS – kein Lipsync aus Audio
+          
+          console.log("Answer received, transitioning to 'answer' state."); // Debugging Log
+          
+          // Sprachausgabe
           speakAndAnimate(data.answer);
 
           // 3️⃣ ANTWORT FERTIG → jetzt erst zurück nach rechts!
           const waitUntilDone = setInterval(() => {
             if (!talking && !rising) {
+              console.log("Finished answering, transitioning to idle."); // Debugging Log
               clearInterval(waitUntilDone);
               resetMovements();
               greeted = false;
               STATE = "idle";
 
-              // ⭐ TRIGGER → block 4 aktiviert RECHTS-NEIGUNG!
               toIdlePose = true;
               toIdleStart = performance.now();
             }
@@ -400,13 +401,13 @@ if ("webkitSpeechRecognition" in window) {
         });
 
       }, MIN_HMMM);
-
     } else {
       resetMovements();
       STATE = "idle";
     }
   };
 }
+
    /* -----------------------------
    BUTTON – GREET & LISTEN
 ----------------------------- */
@@ -524,40 +525,12 @@ function speak(text, slow = false) {
       const wide = jaw * 0.32;
       const puck = jaw * 0.18;
 
-      // Simulierte Lippenbewegungen für A, O, M, P
-      let smile = 0; // mouthSmileIndex für A
-      let frown = 0; // mouthFrownIndex für O und M/P
-
-      // Überprüfung, ob "A" im Text ist
-      if (text.match(/[aáäà]/i)) {  
-        smile = 0.5;  // Mund für A weiten
-        console.log("Detected 'A' in text, smile activated.");  // Debugging Log
-      }
-
-      // Überprüfung, ob "O" im Text ist
-      if (text.match(/[oóö]/i)) {  
-        frown = 0.5;  // Mund für O öffnen
-        console.log("Detected 'O' in text, frown activated.");  // Debugging Log
-      }
-
-      // Überprüfung, ob "M" im Text ist
-      if (text.match(/[m]/i)) {    
-        puck = 0.25; // Leichtes Schließen für "M"
-        console.log("Detected 'M' in text, puck activated.");  // Debugging Log
-      }
-
-      // Überprüfung, ob "P" im Text ist
-      if (text.match(/[p]/i)) {    
-        wide = 0.2;  // Mund leicht öffnen für "P"
-        console.log("Detected 'P' in text, wide activated.");  // Debugging Log
-      }
+      console.log(`Jaw: ${jaw}, Wide: ${wide}, Pucker: ${puck}`); // Debugging Log
 
       // Setze Blendshapes für Lippenbewegungen
       setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
-      setBlendshape(mouthSmileIndex, smile);  // Für "A"
-      setBlendshape(mouthFrownIndex, frown);  // Für "O" und "M/P"
     }, 38);
   };
 
@@ -572,8 +545,6 @@ function speak(text, slow = false) {
     setBlendshape(jawOpenIndex, 0.05);
     setBlendshape(mouthWideIndex, 0);
     setBlendshape(mouthPuckerIndex, 0);
-    setBlendshape(mouthSmileIndex, 0);  // Reset für smile
-    setBlendshape(mouthFrownIndex, 0);  // Reset für frown
 
     // Cooldown für animate(), aber micro-delay!
     justFinishedSpeaking = true;
