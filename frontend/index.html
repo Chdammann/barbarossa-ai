@@ -518,7 +518,7 @@ function speak(text, slow = false) {
     if (femaleVoice) {
       u.voice = femaleVoice;
       u.rate = 0.8;
-      u.pitch = 0.3; // Tieferer Ton für die weibliche Stimme, um sie "männlicher" klingen zu lassen
+      u.pitch = -1; // Tieferer Ton für die weibliche Stimme, um sie "männlicher" klingen zu lassen
     }
   }
 
