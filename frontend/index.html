@@ -506,7 +506,20 @@ function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
   u.rate = slow ? 0.75 : 1.1;
-  if (maleVoice) u.voice = maleVoice;
+
+  // Verwende männliche Stimme, wenn verfügbar
+  if (maleVoice) {
+    u.voice = maleVoice;
+  } else {
+    // Wenn männliche Stimme nicht verfügbar, verwende weibliche Stimme und setze Pitch tiefer
+    let voices = speechSynthesis.getVoices();
+    let femaleVoice = voices.find(v => v.name === "Google Deutsch");
+
+    if (femaleVoice) {
+      u.voice = femaleVoice;
+      u.pitch = 0.6; // Tieferer Ton für die weibliche Stimme, um sie "männlicher" klingen zu lassen
+    }
+  }
 
   let lipsyncInterval = null;
   let t = 0;
