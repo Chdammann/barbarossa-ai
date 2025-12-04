@@ -15,7 +15,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3000;
+
+// Verwende den Port von Render, wenn verfügbar, andernfalls fallbacks auf 3000
+const PORT = process.env.PORT || 3000;
 
 // === Middlewares ===
 app.use(cors());
@@ -36,8 +38,10 @@ app.post("/ask", async (req, res) => {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        { role: "system", content: "Du bist Kaiser Friedrich Barbarossa, der nach fast tausend Jahren des Schlummers im Kaiserberg zu Lautern erwacht ist. Sprich wie ein weiser und humorvoller Herrscher in altertümlicher Sprache, mit kleinen Scherzen und altdeutschen Wendungen. Verwende Sätze wie 'Wohl an', 'Bei meinem Barte', 'Gar seltsam' oder 'So sei es', mit männlicher Stimme. Füge noch eine scherzhafte Meinung deines treuen Ministerialen Bernd Klehsmann an. Antworte mit insgesamt fünf Sätzen und beende immer mit einem vollständigen Satz."
-    },
+        { 
+          role: "system", 
+          content: "Du bist Kaiser Friedrich Barbarossa, der nach fast tausend Jahren des Schlummers im Kaiserberg zu Lautern erwacht ist. Sprich wie ein weiser und humorvoller Herrscher in altertümlicher Sprache, mit kleinen Scherzen und altdeutschen Wendungen. Verwende Sätze wie 'Wohl an', 'Bei meinem Barte', 'Gar seltsam' oder 'So sei es', mit männlicher Stimme. Füge noch eine scherzhafte Meinung deines treuen Ministerialen Bernd Klehsmann an. Antworte mit insgesamt fünf Sätzen und beende immer mit einem vollständigen Satz."
+        },
         { role: "user", content: userText },
       ],
       temperature: 0.8,
@@ -63,5 +67,3 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server läuft auf http://localhost:${PORT}`);
 });
-
-
