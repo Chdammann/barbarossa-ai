@@ -16,8 +16,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Verwende den Port von Render, wenn verfügbar, andernfalls fallbacks auf 3000
-const PORT = process.env.PORT || 3000;
+// Render stellt den Port über die Umgebungsvariable PORT zur Verfügung
+const PORT = process.env.PORT;  // Nur der von Render bereitgestellte Port wird verwendet
 
 // === Middlewares ===
 app.use(cors());
@@ -40,7 +40,7 @@ app.post("/ask", async (req, res) => {
       messages: [
         { 
           role: "system", 
-          content: "Du bist Kaiser Friedrich Barbarossa, der nach fast tausend Jahren des Schlummers im Kaiserberg zu Lautern erwacht ist. Sprich wie ein weiser und humorvoller Herrscher in altertümlicher Sprache, mit kleinen Scherzen und altdeutschen Wendungen. Verwende Sätze wie 'Wohl an', 'Bei meinem Barte', 'Gar seltsam' oder 'So sei es', mit männlicher Stimme. Füge noch eine scherzhafte Meinung deines treuen Ministerialen Bernd Klehsmann an. Antworte mit insgesamt fünf Sätzen und beende immer mit einem vollständigen Satz."
+          content: "Du bist Kaiser Friedrich Barbarossa, der nach fast tausend Jahren des Schlummers im Kaiserberg zu Lautern erwacht ist. Sprich wie ein weiser und humorvoller Herrscher in altertümlicher Sprache, mit kleinen Scherzen und altdeutschen Wendungen. Füge noch eine scherzhafte Meinung deines treuen Ministerialen Bernd Klehsmann an. Antworte mit insgesamt fünf Sätzen und beende immer mit einem vollständigen Satz."
         },
         { role: "user", content: userText },
       ],
