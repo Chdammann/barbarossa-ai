@@ -522,51 +522,58 @@ function speak(text, slow = false) {
     }
   }
 
-  let lipsyncInterval = null;
-let t = 0;
+ let lipsyncInterval = null;
 
-// Sanfter Drift, damit nie Frame-zu-Frame gesprungen wird
-let jawDrift = 0;
+// Jeder Blendshape bekommt sein eigenes Ziel & aktuellen Wert
+let bs = {
+  jaw:        { current: 0, target: 0 },
+  wide:       { current: 0, target: 0 },
+  pucker:     { current: 0, target: 0 },
+  smile:      { current: 0, target: 0 },
+  frown:      { current: 0, target: 0 }
+};
 
 u.onstart = () => {
   talking = true;
-  mouthCooldown = false;
-  justFinishedSpeaking = false;
 
   lipsyncInterval = setInterval(() => {
-    // 🟢 1) Unregelmäßiges Timing → natürlich, aber nicht zittrig
-    const baseStep = slow ? 0.05 : 0.12;
-    const stepVariation = 1 + (Math.random() * 0.25 - 0.12); // ±12 %
-    t += baseStep * stepVariation;
 
-    // 🟢 2) Low-Frequency-Noise für natürliche Unregelmäßigkeit
-    jawDrift += (Math.random() * 0.01 - 0.005); 
-    jawDrift = Math.min(Math.max(jawDrift, -0.04), 0.04); // Begrenzung
+    // 🟢 1) Alle 120–280ms wird für **jeden Blendshape separat**
+    //     ein neuer Zielwert festgelegt
+    if (Math.random() < 0.07) bs.jaw.target    = Math.random() * 0.45;
+    if (Math.random() < 0.09) bs.wide.target   = Math.random() * 0.35;
+    if (Math.random() < 0.06) bs.pucker.target = Math.random() * 0.30;
+    if (Math.random() < 0.10) bs.smile.target  = Math.random() * 0.25;
+    if (Math.random() < 0.08) bs.frown.target  = Math.random() * 0.25;
 
-    // 🟢 3) Grundbewegung Kiefer
-    let jaw = Math.abs(Math.sin(t)) * 0.45 + jawDrift;
-    jaw = Math.min(Math.max(jaw, 0), 0.5); // clamp
+    // 🟢 2) Jeder Blendshape driftet IDEAL für organischen Realismus:
+    //     eigener Übergang, eigene "Trägheit"
+    bs.jaw.current    += (bs.jaw.target    - bs.jaw.current)    * 0.35;
+    bs.wide.current   += (bs.wide.target   - bs.wide.current)   * 0.28;
+    bs.pucker.current += (bs.pucker.target - bs.pucker.current) * 0.32;
+    bs.smile.current  += (bs.smile.target  - bs.smile.current)  * 0.25;
+    bs.frown.current  += (bs.frown.target  - bs.frown.current)  * 0.27;
 
-    // 🟢 4) Breite & Pucker (sanfte Variation)
-    const wide = jaw * (0.32 + (Math.random() * 0.05 - 0.025));
-    const puck = jaw * (0.18 + (Math.random() * 0.05 - 0.025));
+    // 🟢 3) Kleine individuelle Mikrodrifts (niemals zittrig!)
+    bs.jaw.current    += (Math.random() * 0.02 - 0.01);
+    bs.wide.current   += (Math.random() * 0.015 - 0.007);
+    bs.pucker.current += (Math.random() * 0.015 - 0.007);
+    bs.smile.current  += (Math.random() * 0.012 - 0.006);
+    bs.frown.current  += (Math.random() * 0.012 - 0.006);
 
-    // 🟢 5) Smile & Frown (für A-/O-Laute)
-    const smile = Math.abs(Math.sin(t * 0.9)) * 0.30;
-    const frown = Math.abs(Math.cos(t * 1.1)) * 0.30;
+    // 🟢 4) Grenzen setzen (clamp)
+    bs.jaw.current    = Math.min(Math.max(bs.jaw.current,    0), 0.50);
+    bs.wide.current   = Math.min(Math.max(bs.wide.current,   0), 0.40);
+    bs.pucker.current = Math.min(Math.max(bs.pucker.current, 0), 0.35);
+    bs.smile.current  = Math.min(Math.max(bs.smile.current,  0), 0.30);
+    bs.frown.current  = Math.min(Math.max(bs.frown.current,  0), 0.30);
 
-    // 🟢 6) Lautdynamik – kleine Boosts (verstärkt Realismus)
-    const boost = 1 + (Math.random() * 0.12 - 0.06); // ±6 %
-
-    const mLaute = Math.sin(t) * 0.18 * boost;        // M/P
-    const aOLaute = Math.abs(Math.cos(t)) * 0.33 * boost; // A/O
-
-    // 🟢 7) Blendshapes setzen (final)
-    setBlendshape(jawOpenIndex, jaw);
-    setBlendshape(mouthWideIndex, wide * 1.0 + aOLaute * 0.3);
-    setBlendshape(mouthPuckerIndex, puck * 1.0 + mLaute * 0.3);
-    setBlendshape(mouthSmileIndex, smile * 0.9);
-    setBlendshape(mouthFrownIndex, frown * 0.9);
+    // 🟢 5) Setzen – jetzt extrem unabhängig & organisch
+    setBlendshape(jawOpenIndex,   bs.jaw.current);
+    setBlendshape(mouthWideIndex, bs.wide.current);
+    setBlendshape(mouthPuckerIndex, bs.pucker.current);
+    setBlendshape(mouthSmileIndex, bs.smile.current);
+    setBlendshape(mouthFrownIndex, bs.frown.current);
 
   }, 33); // ~30 FPS
 };
