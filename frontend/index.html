@@ -524,7 +524,6 @@ function speak(text, slow = false) {
 
  let lipsyncInterval = null;
 
-// Jeder Blendshape bekommt sein eigenes Ziel & aktuellen Wert
 let bs = {
   jaw:        { current: 0, target: 0 },
   wide:       { current: 0, target: 0 },
@@ -538,46 +537,43 @@ u.onstart = () => {
 
   lipsyncInterval = setInterval(() => {
 
-    // 🟢 1) Alle 120–280ms wird für **jeden Blendshape separat**
-    //     ein neuer Zielwert festgelegt
-    if (Math.random() < 0.07) bs.jaw.target    = Math.random() * 0.45;
-    if (Math.random() < 0.09) bs.wide.target   = Math.random() * 0.35;
-    if (Math.random() < 0.06) bs.pucker.target = Math.random() * 0.30;
-    if (Math.random() < 0.10) bs.smile.target  = Math.random() * 0.25;
-    if (Math.random() < 0.08) bs.frown.target  = Math.random() * 0.25;
+    // 🟢 1) Würdevoller Sprecher = weniger, aber deutliche Impulse
+    if (Math.random() < 0.10) bs.jaw.target    = Math.random() * 0.55; // Kiefer dominiert
+    if (Math.random() < 0.07) bs.wide.target   = Math.random() * 0.35;
+    if (Math.random() < 0.05) bs.pucker.target = Math.random() * 0.30;
+    if (Math.random() < 0.06) bs.smile.target  = Math.random() * 0.18; // dezenter Ausdruck
+    if (Math.random() < 0.06) bs.frown.target  = Math.random() * 0.22; // leichte Betonung
 
-    // 🟢 2) Jeder Blendshape driftet IDEAL für organischen Realismus:
-    //     eigener Übergang, eigene "Trägheit"
-    bs.jaw.current    += (bs.jaw.target    - bs.jaw.current)    * 0.35;
-    bs.wide.current   += (bs.wide.target   - bs.wide.current)   * 0.28;
-    bs.pucker.current += (bs.pucker.target - bs.pucker.current) * 0.32;
-    bs.smile.current  += (bs.smile.target  - bs.smile.current)  * 0.25;
-    bs.frown.current  += (bs.frown.target  - bs.frown.current)  * 0.27;
+    // 🟢 2) Sanftere, gleichmäßigere Übergänge (mehr Gravitas)
+    bs.jaw.current    += (bs.jaw.target    - bs.jaw.current)    * 0.33;
+    bs.wide.current   += (bs.wide.target   - bs.wide.current)   * 0.25;
+    bs.pucker.current += (bs.pucker.target - bs.pucker.current) * 0.28;
+    bs.smile.current  += (bs.smile.target  - bs.smile.current)  * 0.20;
+    bs.frown.current  += (bs.frown.target  - bs.frown.current)  * 0.23;
 
-    // 🟢 3) Kleine individuelle Mikrodrifts (niemals zittrig!)
+    // 🟢 3) Leiser Drift, würdevoll ruhig, ohne Hektik
     bs.jaw.current    += (Math.random() * 0.02 - 0.01);
-    bs.wide.current   += (Math.random() * 0.015 - 0.007);
-    bs.pucker.current += (Math.random() * 0.015 - 0.007);
-    bs.smile.current  += (Math.random() * 0.012 - 0.006);
-    bs.frown.current  += (Math.random() * 0.012 - 0.006);
+    bs.wide.current   += (Math.random() * 0.012 - 0.006);
+    bs.pucker.current += (Math.random() * 0.012 - 0.006);
+    bs.smile.current  += (Math.random() * 0.01 - 0.005);
+    bs.frown.current  += (Math.random() * 0.01 - 0.005);
 
-    // 🟢 4) Grenzen setzen (clamp)
-    bs.jaw.current    = Math.min(Math.max(bs.jaw.current,    0), 0.50);
-    bs.wide.current   = Math.min(Math.max(bs.wide.current,   0), 0.40);
-    bs.pucker.current = Math.min(Math.max(bs.pucker.current, 0), 0.35);
-    bs.smile.current  = Math.min(Math.max(bs.smile.current,  0), 0.30);
-    bs.frown.current  = Math.min(Math.max(bs.frown.current,  0), 0.30);
+    // 🟢 4) Grenzen – etwas geringer als Stil 2 (mehr Würde)
+    bs.jaw.current    = Math.min(Math.max(bs.jaw.current,    0), 0.55);
+    bs.wide.current   = Math.min(Math.max(bs.wide.current,   0), 0.38);
+    bs.pucker.current = Math.min(Math.max(bs.pucker.current, 0), 0.32);
+    bs.smile.current  = Math.min(Math.max(bs.smile.current,  0), 0.20);
+    bs.frown.current  = Math.min(Math.max(bs.frown.current,  0), 0.25);
 
-    // 🟢 5) Setzen – jetzt extrem unabhängig & organisch
-    setBlendshape(jawOpenIndex,   bs.jaw.current);
-    setBlendshape(mouthWideIndex, bs.wide.current);
-    setBlendshape(mouthPuckerIndex, bs.pucker.current);
-    setBlendshape(mouthSmileIndex, bs.smile.current);
-    setBlendshape(mouthFrownIndex, bs.frown.current);
+    // 🟢 5) Finales Setzen der Würde-Blendshapes
+    setBlendshape(jawOpenIndex,      bs.jaw.current);
+    setBlendshape(mouthWideIndex,    bs.wide.current);
+    setBlendshape(mouthPuckerIndex,  bs.pucker.current);
+    setBlendshape(mouthSmileIndex,   bs.smile.current);
+    setBlendshape(mouthFrownIndex,   bs.frown.current);
 
-  }, 33); // ~30 FPS
+  }, 33);
 };
-
   u.onend = () => {
     clearInterval(lipsyncInterval);
     lipsyncInterval = null;
