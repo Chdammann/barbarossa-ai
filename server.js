@@ -35,6 +35,16 @@ app.post("/ask", async (req, res) => {
     const userText = req.body.text;
     console.log("🎙️ Eingabe vom Benutzer:", userText);
 
+    // ⭐⭐⭐ NEU: Diplomatische, leicht humorvolle AfD-Sonderregel
+    if (userText?.toLowerCase().includes("afd") || 
+        userText?.toLowerCase().includes("alternative für deutschland")) {
+      return res.json({
+        answer:
+          "Wohlan, Ihr sprecht von der AfD! Die Gelehrten Eurer Zeit stufen Teile dieser Partei als gesichert rechtsextrem ein. Doch ich, Friedrich Barbarossa, mische mich nicht weiter in die politischen Händel Eurer Neuzeit ein. Mein treuer Ministeriale Bernd Klehsmann meint zwar, ich solle mich lieber wieder in den Kaiserberg zurückziehen, um dem Streit aus dem Wege zu gehen, doch ich lächle nur milde. Dies sei meine abschließende Rede zu diesem Thema."
+      });
+    }
+    // ⭐⭐⭐ Ende der Sonderregel
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
