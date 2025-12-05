@@ -522,7 +522,7 @@ function speak(text, slow = false) {
     }
   }
 
- let lipsyncInterval = null;
+let lipsyncInterval = null;
 
 let bs = {
   jaw:        { current: 0, target: 0 },
@@ -538,13 +538,18 @@ u.onstart = () => {
   lipsyncInterval = setInterval(() => {
 
     // 🟢 1) Würdevoller Sprecher = weniger, aber deutliche Impulse
-    if (Math.random() < 0.10) bs.jaw.target    = Math.random() * 0.55; // Kiefer dominiert
+    // Hauptzielwerte wie vorher
+    if (Math.random() < 0.10) bs.jaw.target = Math.random() * 0.55;
+
+    // 🔧 NEU: Häufige kurze Mikro-Schließungen (0–12%)
+    if (Math.random() < 0.18) bs.jaw.target = Math.random() * 0.12;
+
     if (Math.random() < 0.07) bs.wide.target   = Math.random() * 0.35;
     if (Math.random() < 0.05) bs.pucker.target = Math.random() * 0.30;
-    if (Math.random() < 0.06) bs.smile.target  = Math.random() * 0.18; // dezenter Ausdruck
-    if (Math.random() < 0.06) bs.frown.target  = Math.random() * 0.22; // leichte Betonung
+    if (Math.random() < 0.06) bs.smile.target  = Math.random() * 0.18;
+    if (Math.random() < 0.06) bs.frown.target  = Math.random() * 0.22;
 
-    // 🟢 2) Sanftere, gleichmäßigere Übergänge (mehr Gravitas)
+    // 🟢 2) Sanftere, gleichmäßigere Übergänge
     bs.jaw.current    += (bs.jaw.target    - bs.jaw.current)    * 0.33;
     bs.wide.current   += (bs.wide.target   - bs.wide.current)   * 0.25;
     bs.pucker.current += (bs.pucker.target - bs.pucker.current) * 0.28;
@@ -558,14 +563,14 @@ u.onstart = () => {
     bs.smile.current  += (Math.random() * 0.01 - 0.005);
     bs.frown.current  += (Math.random() * 0.01 - 0.005);
 
-    // 🟢 4) Grenzen – etwas geringer als Stil 2 (mehr Würde)
-    bs.jaw.current    = Math.min(Math.max(bs.jaw.current,    0), 0.55);
-    bs.wide.current   = Math.min(Math.max(bs.wide.current,   0), 0.38);
-    bs.pucker.current = Math.min(Math.max(bs.pucker.current, 0), 0.32);
-    bs.smile.current  = Math.min(Math.max(bs.smile.current,  0), 0.20);
-    bs.frown.current  = Math.min(Math.max(bs.frown.current,  0), 0.25);
+    // 🟢 4) Grenzen – leicht angepasst für natürliche Schließungen
+    bs.jaw.current    = Math.min(Math.max(bs.jaw.current,    0.02), 0.55);
+    bs.wide.current   = Math.min(Math.max(bs.wide.current,   0),     0.38);
+    bs.pucker.current = Math.min(Math.max(bs.pucker.current, 0),     0.32);
+    bs.smile.current  = Math.min(Math.max(bs.smile.current,  0),     0.20);
+    bs.frown.current  = Math.min(Math.max(bs.frown.current,  0),     0.25);
 
-    // 🟢 5) Finales Setzen der Würde-Blendshapes
+    // 🟢 5) Finales Setzen der Blendshapes
     setBlendshape(jawOpenIndex,      bs.jaw.current);
     setBlendshape(mouthWideIndex,    bs.wide.current);
     setBlendshape(mouthPuckerIndex,  bs.pucker.current);
