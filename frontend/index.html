@@ -263,7 +263,8 @@ function safeStartRecognition() {
   try { recognition.stop(); } catch(e) {}
 
   setTimeout(() => {
-    try { recognition.start(); } catch(e) {
+    try { safeStartRecognition();
+ } catch(e) {
       console.warn("🎤 Recognition start verhindert (lief schon)");
     }
   }, 80);
@@ -481,7 +482,7 @@ document.getElementById("micBtn").onclick = () => {
   resetMovements();
   lastTranscript = "";
   STATE = "listen";
-  recognition.start();
+  safeStartRecognition();
 };
 /* -----------------------------
    1) MÄNNLICHE STIMME FEST SETZEN  (GLOBAL!)
