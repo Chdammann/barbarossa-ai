@@ -458,8 +458,10 @@ function animate() {
 ----------------------------- */
 document.getElementById("micBtn").onclick = () => {
 
-  // Erste Betätigung → Begrüßung
+  // 1️⃣ Erste Betätigung → Begrüßung
   if (!greeted) {
+    try { recognition.stop(); } catch(e) {}
+
     resetMovements();
     greeted = true;
     STATE = "greet";
@@ -475,16 +477,20 @@ document.getElementById("micBtn").onclick = () => {
     return;
   }
 
- // Spätere Betätigung → Spracherkennung starten
-if (!recognition) {
-  alert("Spracherkennung wird nicht unterstützt.");
-  return;
-}
+  // 2️⃣ Spätere Betätigung → Spracherkennung starten
+  if (!recognition) {
+    alert("Spracherkennung wird nicht unterstützt.");
+    return;
+  }
 
-resetMovements();
-lastTranscript = "";
-STATE = "listen";
-safeStartRecognition();   // ✅ genau hier ist es richtig
+  resetMovements();
+  lastTranscript = "";
+
+  // ⛔ WICHTIG: Erkennen in definierten Zustand setzen
+  recognition.onend = null; 
+
+  STATE = "listen";
+  safeStartRecognition();   // ✔ sicherer Start
 };
 
 /* -----------------------------
