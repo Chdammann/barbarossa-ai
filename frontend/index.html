@@ -263,12 +263,14 @@ function safeStartRecognition() {
   try { recognition.stop(); } catch(e) {}
 
   setTimeout(() => {
-    try { safeStartRecognition();
- } catch(e) {
+    try { 
+      recognition.start();   // ✔ richtig
+    } catch(e) {
       console.warn("🎤 Recognition start verhindert (lief schon)");
     }
   }, 80);
 }
+
   // Aufnahme beendet:
   recognition.onend = () => {
     if (STATE === "listen" && lastTranscript) {
@@ -473,17 +475,18 @@ document.getElementById("micBtn").onclick = () => {
     return;
   }
 
-  // Spätere Betätigung → Spracherkennung starten
-  if (!recognition) {
-    alert("Spracherkennung wird nicht unterstützt.");
-    return;
-  }
+ // Spätere Betätigung → Spracherkennung starten
+if (!recognition) {
+  alert("Spracherkennung wird nicht unterstützt.");
+  return;
+}
 
-  resetMovements();
-  lastTranscript = "";
-  STATE = "listen";
-  safeStartRecognition();
+resetMovements();
+lastTranscript = "";
+STATE = "listen";
+safeStartRecognition();   // ✅ genau hier ist es richtig
 };
+
 /* -----------------------------
    1) MÄNNLICHE STIMME FEST SETZEN  (GLOBAL!)
 ----------------------------- */
