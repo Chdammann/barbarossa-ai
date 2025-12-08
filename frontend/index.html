@@ -256,7 +256,18 @@ if ("webkitSpeechRecognition" in window) {
   recognition.onresult = e => {
     lastTranscript = e.results[0][0].transcript;
   };
+  // ----------------------------------
+// SICHERER RECOGNITION-START
+// ----------------------------------
+function safeStartRecognition() {
+  try { recognition.stop(); } catch(e) {}
 
+  setTimeout(() => {
+    try { recognition.start(); } catch(e) {
+      console.warn("🎤 Recognition start verhindert (lief schon)");
+    }
+  }, 80);
+}
   // Aufnahme beendet:
   recognition.onend = () => {
     if (STATE === "listen" && lastTranscript) {
