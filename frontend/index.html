@@ -626,12 +626,19 @@ function speak(text, slow = false) {
   };
 
   u.onend = () => {
-    clearInterval(lipsyncInterval);
+    clearInterval(lipsyncInterval);   // Stoppe Lippenbewegungsintervall
     lipsyncInterval = null;
     talking = false;
 
     // ⭐ ⭐ ⭐ MUND NACH TTS SAUBER SCHLIESSEN ⭐ ⭐ ⭐
     closeMouth();
+
+    // Sofort alle Blendshapes zurücksetzen, um Restbewegungen zu vermeiden
+    setBlendshape(jawOpenIndex, 0.1);  // Leicht geöffnet
+    setBlendshape(mouthWideIndex, 0);
+    setBlendshape(mouthPuckerIndex, 0);
+    setBlendshape(mouthSmileIndex, 0);
+    setBlendshape(mouthFrownIndex, 0);
 
     // Cooldown für animate(), verhindert Idle-Klappern
     justFinishedSpeaking = true;
@@ -639,14 +646,22 @@ function speak(text, slow = false) {
 
     // Kleiner Delay, dann ist alles sauber
     setTimeout(() => {
-      justFinishedSpeaking = false;
-      mouthCooldown = false;
-    }, 80);
-  };
+        justFinishedSpeaking = false;
+        mouthCooldown = false;
+    }, 100);  // Leichte Anpassung des Delays
 
-  // GANZ WICHTIG!
-  speechSynthesis.speak(u);
-}
+    // Um sicherzustellen, dass keine Blendshape-Fehler oder Übergänge übrig bleiben
+    setTimeout(() => {
+        setBlendshape(jawOpenIndex, 0.1);  // Mindestens nochmal setzen, um sicher zu gehen
+        setBlendshape(mouthWideIndex, 0);
+        setBlendshape(mouthPuckerIndex, 0);
+        setBlendshape(mouthSmileIndex, 0);
+        setBlendshape(mouthFrownIndex, 0);
+    }, 150);  // Zweite Sicherheitsschicht für Blendshape-Rücksetzung
+};
+
+// GANZ WICHTIG: Start TTS
+speechSynthesis.speak(u);
 
 
 /* -----------------------------
