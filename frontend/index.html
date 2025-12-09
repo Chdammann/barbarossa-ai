@@ -353,7 +353,7 @@ fetch("/tts", {
   };
 }
   
-// ====================================
+//// ====================================
 // ANIMATE – FINAL & STABLE (mit Fixes)
 // ====================================
 function animate() {
@@ -446,18 +446,16 @@ function animate() {
     );
   }
 
-  // 🟢 Idle-Mundhaltung (zweiter Block – unverändert gelassen!)
-  if (!talking) {
-    setBlendshape(jawOpenIndex, 0.1);
-    setBlendshape(mouthWideIndex, 0);
-    setBlendshape(mouthPuckerIndex, 0);
-    setBlendshape(mouthSmileIndex, 0);
-    setBlendshape(mouthFrownIndex, 0);
-  }
+  // 🟢 (WICHTIG!) Der alte zweite Idle-Mundblock wurde ENTFERNT.
+  //    Er war die Ursache für die SpeechRecognition-Blockade.
+  //
+  //    Es kommt zu KEINEM Nachklappern, weil:
+  //    - closeMouth() sauber schließt
+  //    - der obere Idle-Block präzise arbeitet
+  //    - mouthCooldown Idle-Resets korrekt verzögert
 
   renderer.render(scene, camera);
 }
-
   /* -----------------------------
    BUTTON – GREET & LISTEN
 ----------------------------- */
@@ -589,7 +587,7 @@ function speak(text, slow = false) {
       // 🔧 Mikro-Schließungen
       if (Math.random() < 0.18) bs.jaw.target = Math.random() * 0.12;
 
-      if (Math.random() < 0.07) bs.wide.target   = Math.random() * 0.35;
+      if (Math.random() < 0.07) bs.wwide.target   = Math.random() * 0.35;
       if (Math.random() < 0.05) bs.pucker.target = Math.random() * 0.30;
       if (Math.random() < 0.06) bs.smile.target  = Math.random() * 0.18;
       if (Math.random() < 0.06) bs.frown.target  = Math.random() * 0.22;
@@ -598,15 +596,15 @@ function speak(text, slow = false) {
       bs.jaw.current    += (bs.jaw.target    - bs.jaw.current)    * 0.33;
       bs.wide.current   += (bs.wide.target   - bs.wide.current)   * 0.25;
       bs.pucker.current += (bs.pucker.target - bs.pucker.current) * 0.28;
-      bs.smile.current  += (bs.smile.target  - bs.smile.current)  * 0.20;
-      bs.frown.current  += (bs.frown.target  - bs.frown.current)  * 0.23;
+      bs.smile.current  += (bs.smile.target  - bs.smile.current   ) * 0.20;
+      bs.frown.current  += (bs.frown.target  - bs.frown.current   ) * 0.23;
 
       // 🟢 3) Leichter Drift
       bs.jaw.current    += (Math.random() * 0.02 - 0.01);
       bs.wide.current   += (Math.random() * 0.012 - 0.006);
       bs.pucker.current += (Math.random() * 0.012 - 0.006);
-      bs.smile.current  += (Math.random() * 0.01 - 0.005);
-      bs.frown.current  += (Math.random() * 0.01 - 0.005);
+      bs.smile.current  += (Math.random() * 0.01  - 0.005);
+      bs.frown.current  += (Math.random() * 0.01  - 0.005);
 
       // 🟢 4) Begrenzungen
       bs.jaw.current    = Math.min(Math.max(bs.jaw.current,    0.02), 0.55);
@@ -648,21 +646,11 @@ function speak(text, slow = false) {
     setTimeout(() => {
         justFinishedSpeaking = false;
         mouthCooldown = false;
-    }, 100);  // Leichte Anpassung des Delays
+    }, 100);
+  };
 
-    // Um sicherzustellen, dass keine Blendshape-Fehler oder Übergänge übrig bleiben
-    setTimeout(() => {
-        setBlendshape(jawOpenIndex, 0.1);  // Mindestens nochmal setzen, um sicher zu gehen
-        setBlendshape(mouthWideIndex, 0);
-        setBlendshape(mouthPuckerIndex, 0);
-        setBlendshape(mouthSmileIndex, 0);
-        setBlendshape(mouthFrownIndex, 0);
-    }, 150);  // Zweite Sicherheitsschicht für Blendshape-Rücksetzung
-};
-
-// GANZ WICHTIG: Start TTS
-speechSynthesis.speak(u);
-
+  // GANZ WICHTIG: Start TTS
+  speechSynthesis.speak(u);
 }
 /* -----------------------------
    RESIZE
