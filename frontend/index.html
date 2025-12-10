@@ -539,14 +539,25 @@ jaw = Math.min(Math.max(jaw, 0), 0.45);
 // ⭐ ultra-weiche Glättung, aber NICHT einschläfernd
 jaw = lerp(getBlendshape(jawOpenIndex), jaw, 0.03);
 
-// starke und sichtbare Morphformen
+// klassische Formen
 const wide = jaw * 0.48;
 const puck = jaw * 0.30;
 
+// neue Ausdruckskomponenten
+const smile = jaw * 0.15;   // leichtes Hochziehen
+const frown = jaw * 0.10;   // leichte Rundung nach unten
 
-      setBlendshape(jawOpenIndex, jaw);
-      setBlendshape(mouthWideIndex, wide);
-      setBlendshape(mouthPuckerIndex, puck);
+// leichte Variation bei Smile/Frown (damit es nicht statisch wirkt)
+const smileVar = smile * (0.8 + Math.random() * 0.4);
+const frownVar = frown * (0.8 + Math.random() * 0.4);
+
+// Blendshapes setzen
+setBlendshape(jawOpenIndex, jaw);
+setBlendshape(mouthWideIndex, wide);
+setBlendshape(mouthPuckerIndex, puck);
+setBlendshape(mouthSmileIndex, smileVar);
+setBlendshape(mouthFrownIndex, frownVar);
+
     }, 38);
   };
 
