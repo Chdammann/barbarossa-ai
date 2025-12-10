@@ -338,11 +338,11 @@ if ("webkitSpeechRecognition" in window) {
   };
 
   // Aufnahme beendet:
-recognition.onend = () => {
-  recRunning = false;   // <-- FIX
-  console.log("✔ Recognition ended");
+  recognition.onend = () => {
+    recRunning = false;   // FIX
+    console.log("✔ Recognition ended");
 
-  if (STATE === "listen" && lastTranscript) {
+    if (STATE === "listen" && lastTranscript) {
 
       // 1️⃣ HMMM – Kopf langsam nach links:
       resetMovements();
@@ -351,7 +351,7 @@ recognition.onend = () => {
       hmStartTime = performance.now();
       speak("Ähm..... einen Moment", true);
 
-      // Mindestwartezeit einhalten:
+      // Mindestwartezeit:
       const MIN_HMMM = 4000;
       setTimeout(() => {
 
@@ -369,7 +369,7 @@ recognition.onend = () => {
           rising = true;
           riseStartTime = performance.now();
 
-          // 🔁 NEUER BLOCK: ECHTES TTS MIT LIPSYNC
+          // 🔁 TTS BLOCK
           fetch("/tts", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -384,7 +384,7 @@ recognition.onend = () => {
             speak(data.answer);
           });
 
-          // 3️⃣ ANTWORT FERTIG → jetzt erst zurück nach rechts!
+          // 3️⃣ WARTEN BIS FERTIG
           const waitUntilDone = setInterval(() => {
             if (!talking && !rising) {
               clearInterval(waitUntilDone);
@@ -396,6 +396,7 @@ recognition.onend = () => {
               toIdleStart = performance.now();
             }
           }, 200);
+
         })
         .catch(() => {
           resetMovements();
@@ -404,11 +405,18 @@ recognition.onend = () => {
 
       }, MIN_HMMM);
 
-  } else {
+    } else {
       resetMovements();
       STATE = "idle";
-  }
-};  // <-- DIESE ist die ECHTE, richtige Klammer
+    }
+  }; // <-- Genau hier endet recognition.onend
+
+} // <-- Ende von if ("webkitSpeechRecognition")
+
+/* -----------------------------
+   BUTTON – GREET & LISTEN
+----------------------------- */
+
 
    /* -----------------------------
    BUTTON – GREET & LISTEN
