@@ -81,6 +81,8 @@
 let jawOpenIndex = null;
 let mouthWideIndex = null;
 let mouthPuckerIndex = null;
+let mouthSmileIndex = null;
+let mouthFrownIndex = null;
 
 // Audio / Analyse
 let audioCtx, analyser, src;
@@ -187,9 +189,12 @@ loader.load("./avatar.glb", gltf => {
       for (const [name, idx] of Object.entries(obj.morphTargetDictionary)) {
         const lower = name.toLowerCase();
 
-        if (lower.includes("jaw"))   jawOpenIndex = idx;
-        if (lower.includes("wide"))  mouthWideIndex = idx;
-        if (lower.includes("puck"))  mouthPuckerIndex = idx;
+      if (lower.includes("jaw"))        jawOpenIndex = idx;
+      if (lower.includes("wide"))       mouthWideIndex = idx;
+      if (lower.includes("puck"))       mouthPuckerIndex = idx;
+      if (lower.includes("smile"))      mouthSmileIndex = idx;
+      if (lower.includes("frown"))      mouthFrownIndex = idx;
+
       }
     }
   });
