@@ -532,31 +532,39 @@ function speak(text, slow = false) {
 
       // ⭐ Organischer, natürlicher Lipsync — Version KAISER 2.0
 
-// Grundfrequenzen mischen → KEIN periodischer Ablauf
-let jaw = 
-    Math.abs(Math.sin(t * 1.4)) * 0.30 +
-    Math.abs(Math.sin(t * 0.63)) * 0.22 +
-    Math.abs(Math.sin(t * 2.1)) * 0.10;
+// ⭐ Barbarossa Lipsync – KAISER 2.1
+// realistischer, ruhiger, mit echten Mundschließ-Momenten
 
-// leichte Variation — aber NICHT zu stark
-jaw += (Math.random() * 0.10 - 0.05);
+// 1) Basis aus mehreren Frequenzen → keine Regelmäßigkeit
+let jaw =
+    Math.abs(Math.sin(t * 1.2)) * 0.26 +
+    Math.abs(Math.sin(t * 0.58)) * 0.18 +
+    Math.abs(Math.sin(t * 2.0)) * 0.08;
 
-// gelegentliche Impulse (Konsonanten)
-if (Math.random() < 0.06) jaw *= 1.35;
+// 2) leichte Variation (ruhiger als zuvor)
+jaw += (Math.random() * 0.06 - 0.03);
 
-// Grenzen setzen
+// 3) kleine Schließ-Impulse (alle 200–350ms)
+if (t % 0.22 < 0.02) {
+  jaw *= 0.35;  // Mund kurz stärker schließen
+}
+
+// 4) Konsonanten-Impulse (dezenter)
+if (Math.random() < 0.03) jaw *= 1.25;
+
+// 5) Begrenzen
 jaw = Math.min(Math.max(jaw, 0), 0.50);
 
-// Glättung reduziert gleichmäßiges Muster
-jaw = lerp(getBlendshape(jawOpenIndex), jaw, 0.18);
+// 6) Glättung → ruhiger, aber lebendig
+jaw = lerp(getBlendshape(jawOpenIndex), jaw, 0.20);
 
-// ====== Nebenformen ======
-const wide  = jaw * (0.35 + Math.random() * 0.30);
-const puck  = jaw * (0.20 + Math.random() * 0.15);
+// ====== Sekundärformen ======
+const wide  = jaw * (0.30 + Math.random() * 0.20);
+const puck  = jaw * (0.15 + Math.random() * 0.12);
 
-// ====== Ausdruck ======
-const smile = jaw * (0.10 + Math.random() * 0.30);
-const frown = jaw * (0.05 + Math.random() * 0.25);
+// ====== Ausdruck (ruhiger!) ======
+const smile = jaw * (0.05 + Math.random() * 0.15);
+const frown = jaw * (0.04 + Math.random() * 0.15);
 
 // ====== SETZEN ======
 setBlendshape(jawOpenIndex, jaw);
@@ -564,7 +572,6 @@ setBlendshape(mouthWideIndex, wide);
 setBlendshape(mouthPuckerIndex, puck);
 setBlendshape(mouthSmileIndex, smile);
 setBlendshape(mouthFrownIndex, frown);
-
     }, 38);
   };
 
