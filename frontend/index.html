@@ -530,39 +530,40 @@ function speak(text, slow = false) {
 
       // ⭐ Majestätischer Barbarossa Lipsync – FINAL
 
-      // rhythmische Basisbewegung
-      let jaw = Math.abs(Math.sin(t * 1.1)) * 0.55;
+      // ⭐ Organischer, natürlicher Lipsync — Version KAISER 2.0
 
-      // kräftige, natürliche Variation
-      jaw += (Math.random() * 0.20 - 0.10);
+// Grundfrequenzen mischen → KEIN periodischer Ablauf
+let jaw = 
+    Math.abs(Math.sin(t * 1.4)) * 0.30 +
+    Math.abs(Math.sin(t * 0.63)) * 0.22 +
+    Math.abs(Math.sin(t * 2.1)) * 0.10;
 
-      // stärkere Konsonanten/Impuls-Momente
-      if (Math.random() < 0.07) jaw *= 0.45;
+// leichte Variation — aber NICHT zu stark
+jaw += (Math.random() * 0.10 - 0.05);
 
-      // Bereich begrenzen
-      jaw = Math.min(Math.max(jaw, 0), 0.58);
+// gelegentliche Impulse (Konsonanten)
+if (Math.random() < 0.06) jaw *= 1.35;
 
-      // leichte Glättung → kein Zittern, aber sichtbar
-      jaw = lerp(getBlendshape(jawOpenIndex), jaw, 0.12);
+// Grenzen setzen
+jaw = Math.min(Math.max(jaw, 0), 0.50);
 
-      // ====== Hauptformen ======
-      const wide  = jaw * 0.75;   // breite Vokale
-      const puck  = jaw * 0.42;   // Rundung
+// Glättung reduziert gleichmäßiges Muster
+jaw = lerp(getBlendshape(jawOpenIndex), jaw, 0.18);
 
-      // ====== Ausdruck / Charakter ======
-      const smileBase = jaw * 0.50;
-      const frownBase = jaw * 0.35;
+// ====== Nebenformen ======
+const wide  = jaw * (0.35 + Math.random() * 0.30);
+const puck  = jaw * (0.20 + Math.random() * 0.15);
 
-      // leichte Variation für Natürlichkeit
-      const smileVar = smileBase * (0.70 + Math.random() * 0.55);
-      const frownVar = frownBase * (0.70 + Math.random() * 0.55);
+// ====== Ausdruck ======
+const smile = jaw * (0.10 + Math.random() * 0.30);
+const frown = jaw * (0.05 + Math.random() * 0.25);
 
-      // ====== SETZEN ======
-      setBlendshape(jawOpenIndex, jaw);
-      setBlendshape(mouthWideIndex, wide);
-      setBlendshape(mouthPuckerIndex, puck);
-      setBlendshape(mouthSmileIndex, smileVar);
-      setBlendshape(mouthFrownIndex, frownVar);
+// ====== SETZEN ======
+setBlendshape(jawOpenIndex, jaw);
+setBlendshape(mouthWideIndex, wide);
+setBlendshape(mouthPuckerIndex, puck);
+setBlendshape(mouthSmileIndex, smile);
+setBlendshape(mouthFrownIndex, frown);
 
     }, 38);
   };
