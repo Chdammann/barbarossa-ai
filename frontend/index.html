@@ -438,11 +438,21 @@ document.getElementById("micBtn").onclick = () => {
     return;
   }
 
-  resetMovements();
-  lastTranscript = "";
-  STATE = "listen";
+if (recRunning) {
+  console.warn("❗RECOGNITION BLOCKED — already running");
+  return;
+}
+
+resetMovements();
+lastTranscript = "";
+STATE = "listen";
+
+try {
   recognition.start();
-};
+  recRunning = true;
+} catch(e) {
+  console.warn("❗Recognition start error:", e);
+}
 /* -----------------------------
    1) MÄNNLICHE STIMME FEST SETZEN  (GLOBAL!)
 ----------------------------- */
