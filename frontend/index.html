@@ -339,8 +339,13 @@ if ("webkitSpeechRecognition" in window) {
 
   // Aufnahme beendet:
   recognition.onend = () => {
-    if (STATE === "listen" && lastTranscript) {
+  recRunning = false;   // <-- DAS IST DER FIX
+  console.log("✔ Recognition ended");
 
+  if (STATE === "listen" && lastTranscript) {
+      // deine ganze Folge-Logik bleibt hier
+  }
+};
       // 1️⃣ HMMM – Kopf langsam nach links:
       resetMovements();
       STATE = "hmmm";
