@@ -528,50 +528,47 @@ function speak(text, slow = false) {
     lipsyncInterval = setInterval(() => {
       t += slow ? 0.05 : 0.1;
 
-      // ⭐ Majestätischer Barbarossa Lipsync – FINAL
+      // ⭐ Barbarossa Lipsync – KAISER 2.2
+      // natürlich, ruhig, artikuliert
 
-      // ⭐ Organischer, natürlicher Lipsync — Version KAISER 2.0
+      // 1) Basisfrequenzen
+      let jaw =
+        Math.abs(Math.sin(t * 1.2)) * 0.26 +
+        Math.abs(Math.sin(t * 0.58)) * 0.18 +
+        Math.abs(Math.sin(t * 2.0)) * 0.08;
 
-// ⭐ Barbarossa Lipsync – KAISER 2.1
-// realistischer, ruhiger, mit echten Mundschließ-Momenten
+      // 2) leichte Variation
+      jaw += (Math.random() * 0.06 - 0.03);
 
-// 1) Basis aus mehreren Frequenzen → keine Regelmäßigkeit
-let jaw =
-    Math.abs(Math.sin(t * 1.2)) * 0.26 +
-    Math.abs(Math.sin(t * 0.58)) * 0.18 +
-    Math.abs(Math.sin(t * 2.0)) * 0.08;
+      // 3) kleine Schließimpulse (deutlichere Artikulation)
+      if (t % 0.18 < 0.02) {
+        jaw *= 0.28;   // stärker & etwas häufiger schließen
+      }
 
-// 2) leichte Variation (ruhiger als zuvor)
-jaw += (Math.random() * 0.06 - 0.03);
+      // 4) Konsonantenimpulse (dezent)
+      if (Math.random() < 0.03) jaw *= 1.25;
 
-// 3) kleine Schließ-Impulse (alle 200–350ms)
-if (t % 0.22 < 0.02) {
-  jaw *= 0.35;  // Mund kurz stärker schließen
-}
+      // 5) Begrenzen
+      jaw = Math.min(Math.max(jaw, 0), 0.50);
 
-// 4) Konsonanten-Impulse (dezenter)
-if (Math.random() < 0.03) jaw *= 1.25;
+      // 6) Glättung (realistisch, nicht zitterig)
+      jaw = lerp(getBlendshape(jawOpenIndex), jaw, 0.20);
 
-// 5) Begrenzen
-jaw = Math.min(Math.max(jaw, 0), 0.50);
+      // ====== Sekundärformen ======
+      const wide  = jaw * (0.35 + Math.random() * 0.25); // breiter als vorher
+      const puck  = jaw * (0.15 + Math.random() * 0.12);
 
-// 6) Glättung → ruhiger, aber lebendig
-jaw = lerp(getBlendshape(jawOpenIndex), jaw, 0.20);
+      // ====== Ausdruck ======
+      const smile = jaw * (0.05 + Math.random() * 0.10); // ruhiger
+      const frown = jaw * (0.04 + Math.random() * 0.10);
 
-// ====== Sekundärformen ======
-const wide  = jaw * (0.30 + Math.random() * 0.20);
-const puck  = jaw * (0.15 + Math.random() * 0.12);
+      // ====== SETZEN ======
+      setBlendshape(jawOpenIndex, jaw);
+      setBlendshape(mouthWideIndex, wide);
+      setBlendshape(mouthPuckerIndex, puck);
+      setBlendshape(mouthSmileIndex, smile);
+      setBlendshape(mouthFrownIndex, frown);
 
-// ====== Ausdruck (ruhiger!) ======
-const smile = jaw * (0.05 + Math.random() * 0.15);
-const frown = jaw * (0.04 + Math.random() * 0.15);
-
-// ====== SETZEN ======
-setBlendshape(jawOpenIndex, jaw);
-setBlendshape(mouthWideIndex, wide);
-setBlendshape(mouthPuckerIndex, puck);
-setBlendshape(mouthSmileIndex, smile);
-setBlendshape(mouthFrownIndex, frown);
     }, 38);
   };
 
@@ -583,8 +580,7 @@ setBlendshape(mouthFrownIndex, frown);
     lipsyncInterval = null;
     talking = false;
 
-    // ⭐ DEIN GENIALER SATZENDE-TRICK:
-    // → Mund nach Ende SOFORT ENTSPANNEN
+    // ⭐ Satzende → Mund entspannen (DEIN Trick)
     if (/[.!?]\s*$/.test(text.trim())) {
       setBlendshape(jawOpenIndex, 0);
       setBlendshape(mouthWideIndex, 0);
@@ -593,7 +589,7 @@ setBlendshape(mouthFrownIndex, frown);
       setBlendshape(mouthFrownIndex, 0);
     }
 
-    // ⭐ Cooldown verhindert „Geisterbewegung“ nach dem Sprechen
+    // ⭐ Cooldown gegen Nachklappern
     justFinishedSpeaking = true;
     mouthCooldown = true;
 
@@ -603,7 +599,7 @@ setBlendshape(mouthFrownIndex, frown);
     }, 20);
   };
 
-  // GANZ WICHTIG!
+  // Start TTS
   speechSynthesis.speak(u);
 }
 /* -----------------------------
