@@ -542,7 +542,7 @@ function speak(text, slow = false) {
 
       // 3) kleine Schließimpulse (deutlichere Artikulation)
       if (t % 0.18 < 0.02) {
-        jaw *= 0.18;   // stärker & etwas häufiger schließen
+        jaw *= 0.12;   // stärker & etwas häufiger schließen
       }
 
       // 4) Konsonantenimpulse (dezent)
@@ -555,8 +555,8 @@ function speak(text, slow = false) {
       jaw = lerp(getBlendshape(jawOpenIndex), jaw, 0.20);
 
       // ====== Sekundärformen ======
-      const wide  = jaw * (0.45 + Math.random() * 0.30); // breiter als vorher
-      const puck  = jaw * (0.20 + Math.random() * 0.15);
+      const wide  = jaw * (0.45 + Math.random() * 0.25); // breiter als vorher
+      const puck  = jaw * (0.15 + Math.random() * 0.12);
 
       // ====== Ausdruck ======
       const smile = jaw * (0.05 + Math.random() * 0.10); // ruhiger
