@@ -338,14 +338,12 @@ if ("webkitSpeechRecognition" in window) {
   };
 
   // Aufnahme beendet:
-  recognition.onend = () => {
-  recRunning = false;   // <-- DAS IST DER FIX
+recognition.onend = () => {
+  recRunning = false;   // <-- FIX
   console.log("✔ Recognition ended");
 
   if (STATE === "listen" && lastTranscript) {
-      // deine ganze Folge-Logik bleibt hier
-  }
-};
+
       // 1️⃣ HMMM – Kopf langsam nach links:
       resetMovements();
       STATE = "hmmm";
@@ -370,23 +368,21 @@ if ("webkitSpeechRecognition" in window) {
           STATE = "answer";
           rising = true;
           riseStartTime = performance.now();
-          // 🔁 NEUER BLOCK: ECHTES TTS MIT LIPSYNC
-fetch("/tts", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ text: data.answer })
-})
-.then(r => r.json())
-.then(dataTTS => {
-  // 1. Audio + Lippenbewegung
-  playAudioAndLipsync(dataTTS.audio, dataTTS.lipsync);
-})
-.catch(err => {
-  console.error("❌ TTS-Fallback:", err);
-  // Fallback: alte TTS nutzen
-  speak(data.answer);
-});
 
+          // 🔁 NEUER BLOCK: ECHTES TTS MIT LIPSYNC
+          fetch("/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: data.answer })
+          })
+          .then(r => r.json())
+          .then(dataTTS => {
+            playAudioAndLipsync(dataTTS.audio, dataTTS.lipsync);
+          })
+          .catch(err => {
+            console.error("❌ TTS-Fallback:", err);
+            speak(data.answer);
+          });
 
           // 3️⃣ ANTWORT FERTIG → jetzt erst zurück nach rechts!
           const waitUntilDone = setInterval(() => {
@@ -396,7 +392,6 @@ fetch("/tts", {
               greeted = false;
               STATE = "idle";
 
-              // ⭐ TRIGGER → block 4 aktiviert RECHTS-NEIGUNG!
               toIdlePose = true;
               toIdleStart = performance.now();
             }
@@ -409,11 +404,11 @@ fetch("/tts", {
 
       }, MIN_HMMM);
 
-    } else {
+  } else {
       resetMovements();
       STATE = "idle";
-    }
-  };
+  }
+};  // <-- DIESE ist die ECHTE, richtige Klammer
 
    /* -----------------------------
    BUTTON – GREET & LISTEN
