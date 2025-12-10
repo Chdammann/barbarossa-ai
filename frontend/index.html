@@ -532,7 +532,7 @@ if (Math.random() < 0.03) jaw *= 0.25;
 jaw = Math.min(Math.max(jaw, 0), 0.45);
 
 // ⭐ weiche Glättung als letzter Schritt
-jaw = lerp(getBlendshape(jawOpenIndex), jaw, 0.22);
+jaw = lerp(getBlendshape(jawOpenIndex), jaw, 0.08);
 
 const wide = jaw * 0.32;
 const puck = jaw * 0.18;
