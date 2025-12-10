@@ -544,12 +544,12 @@ const wide = jaw * 0.48;
 const puck = jaw * 0.30;
 
 // neue Ausdruckskomponenten
-const smile = jaw * 0.15;   // leichtes Hochziehen
-const frown = jaw * 0.10;   // leichte Rundung nach unten
+const smile = jaw * 0.35;   // deutlich sichtbar
+const frown = jaw * 0.25;   // kräftiger
 
 // leichte Variation bei Smile/Frown (damit es nicht statisch wirkt)
-const smileVar = smile * (0.8 + Math.random() * 0.4);
-const frownVar = frown * (0.8 + Math.random() * 0.4);
+const smileVar = smile * (0.7 + Math.random() * 0.6);
+const frownVar = frown * (0.7 + Math.random() * 0.6);
 
 // Blendshapes setzen
 setBlendshape(jawOpenIndex, jaw);
