@@ -520,23 +520,16 @@ function speak(text, slow = false) {
     lipsyncInterval = setInterval(() => {
       t += slow ? 0.05 : 0.1;
 
-     let jaw = Math.abs(Math.sin(t)) * 0.35;
-
-// dezente Zufallsvariation
+let jaw = Math.abs(Math.sin(t)) * 0.35;
 jaw += (Math.random() * 0.08 - 0.04);
-
-// seltene „P/M“-Absenkung
 if (Math.random() < 0.03) jaw *= 0.25;
-
-// clamp
 jaw = Math.min(Math.max(jaw, 0), 0.45);
 
-// ⭐ weiche Glättung als letzter Schritt
-jaw = lerp(getBlendshape(jawOpenIndex), jaw, 0.08);
+// Minimalfilter – noch lebendig
+jaw = lerp(getBlendshape(jawOpenIndex), jaw, 0.05);
 
-const wide = jaw * 0.32;
-const puck = jaw * 0.18;
-
+const wide = jaw * 0.42;
+const puck = jaw * 0.28;
 
       setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
