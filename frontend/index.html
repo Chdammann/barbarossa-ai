@@ -517,6 +517,9 @@ function speak(text, slow = false) {
   let lipsyncInterval = null;
   let t = 0;
 
+  /* -----------------------------
+     START DES SPRECHENS
+  ----------------------------- */
   u.onstart = () => {
     talking = true;
     mouthCooldown = false;
@@ -525,74 +528,76 @@ function speak(text, slow = false) {
     lipsyncInterval = setInterval(() => {
       t += slow ? 0.05 : 0.1;
 
-     let jaw = Math.abs(Math.sin(t)) * 0.38;
+      // ⭐ Majestätischer Barbarossa Lipsync – FINAL
 
-// etwas mutigere Zufallsvariation
-jaw += (Math.random() * 0.10 - 0.05);
+      // rhythmische Basisbewegung
+      let jaw = Math.abs(Math.sin(t * 1.1)) * 0.55;
 
-// etwas häufiger kleine Konsonantenöffnungen
-if (Math.random() < 0.04) jaw *= 0.25;
+      // kräftige, natürliche Variation
+      jaw += (Math.random() * 0.20 - 0.10);
 
-// clamp
-jaw = Math.min(Math.max(jaw, 0), 0.45);
+      // stärkere Konsonanten/Impuls-Momente
+      if (Math.random() < 0.07) jaw *= 0.45;
 
-// ⭐ ultra-weiche Glättung, aber NICHT einschläfernd
-jaw = lerp(getBlendshape(jawOpenIndex), jaw, 0.03);
+      // Bereich begrenzen
+      jaw = Math.min(Math.max(jaw, 0), 0.58);
 
-// klassische Formen
-const wide = jaw * 0.48;
-const puck = jaw * 0.30;
+      // leichte Glättung → kein Zittern, aber sichtbar
+      jaw = lerp(getBlendshape(jawOpenIndex), jaw, 0.12);
 
-// neue Ausdruckskomponenten
-const smile = jaw * 0.35;   // deutlich sichtbar
-const frown = jaw * 0.25;   // kräftiger
+      // ====== Hauptformen ======
+      const wide  = jaw * 0.75;   // breite Vokale
+      const puck  = jaw * 0.42;   // Rundung
 
-// leichte Variation bei Smile/Frown (damit es nicht statisch wirkt)
-const smileVar = smile * (0.7 + Math.random() * 0.6);
-const frownVar = frown * (0.7 + Math.random() * 0.6);
+      // ====== Ausdruck / Charakter ======
+      const smileBase = jaw * 0.50;
+      const frownBase = jaw * 0.35;
 
-// Blendshapes setzen
-setBlendshape(jawOpenIndex, jaw);
-setBlendshape(mouthWideIndex, wide);
-setBlendshape(mouthPuckerIndex, puck);
-setBlendshape(mouthSmileIndex, smileVar);
-setBlendshape(mouthFrownIndex, frownVar);
+      // leichte Variation für Natürlichkeit
+      const smileVar = smileBase * (0.70 + Math.random() * 0.55);
+      const frownVar = frownBase * (0.70 + Math.random() * 0.55);
+
+      // ====== SETZEN ======
+      setBlendshape(jawOpenIndex, jaw);
+      setBlendshape(mouthWideIndex, wide);
+      setBlendshape(mouthPuckerIndex, puck);
+      setBlendshape(mouthSmileIndex, smileVar);
+      setBlendshape(mouthFrownIndex, frownVar);
 
     }, 38);
   };
 
+  /* -----------------------------
+     ENDE DES SPRECHENS
+  ----------------------------- */
   u.onend = () => {
     clearInterval(lipsyncInterval);
     lipsyncInterval = null;
     talking = false;
 
-    // Sofort in Idle
-    setBlendshape(jawOpenIndex, 0.03);
-    setBlendshape(mouthWideIndex, 0);
-    setBlendshape(mouthPuckerIndex, 0);
+    // ⭐ DEIN GENIALER SATZENDE-TRICK:
+    // → Mund nach Ende SOFORT ENTSPANNEN
+    if (/[.!?]\s*$/.test(text.trim())) {
+      setBlendshape(jawOpenIndex, 0);
+      setBlendshape(mouthWideIndex, 0);
+      setBlendshape(mouthPuckerIndex, 0);
+      setBlendshape(mouthSmileIndex, 0);
+      setBlendshape(mouthFrownIndex, 0);
+    }
 
-    // Cooldown für animate(), aber micro-delay!
+    // ⭐ Cooldown verhindert „Geisterbewegung“ nach dem Sprechen
     justFinishedSpeaking = true;
     mouthCooldown = true;
 
-    // ⏱ dieser Trick killt das Geister-Zittern:
     setTimeout(() => {
       justFinishedSpeaking = false;
       mouthCooldown = false;
     }, 20);
   };
 
-  // ⭐ Satz-Ende: Mundbewegung sofort beruhigen
-  if (/[.!?]\s*$/.test(text.trim())) {
-    setBlendshape(jawOpenIndex, 0);
-    setBlendshape(mouthWideIndex, 0);
-    setBlendshape(mouthPuckerIndex, 0);
-  }
-
   // GANZ WICHTIG!
   speechSynthesis.speak(u);
-}  // <== ENDE SPEAK
-
+}
 /* -----------------------------
    RESIZE
 ----------------------------- */
