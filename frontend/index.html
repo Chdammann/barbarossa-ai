@@ -296,30 +296,28 @@ function animate() {
     model.rotation.x = THREE.MathUtils.lerp(model.rotation.x, baseRotX, 0.03);
   }
 
-  // ⭐ Sichtbare, natürliche Blickbewegungen – Version 2 (ohne Aufschaukeln)
-  const driftX = Math.sin(now * 0.0012) * 0.05;   // klares Nicken
-  const driftY = Math.sin(now * 0.0010) * 0.04;   // seitliches „Denken“
+  // ⭐ Sehr dezente, würdige Kopf-Driftbewegungen (Kaiser-Version 3.0)
+const driftX = Math.sin(now * 0.0004) * 0.015;   // langsames, kaum sichtbares Nicken
+const driftY = Math.sin(now * 0.0003) * 0.012;   // sehr sanfte Seitbewegung
 
-  // X-Achse → um baseRotX herum
-  model.rotation.x = THREE.MathUtils.lerp(
-    model.rotation.x,
-    baseRotX + driftX,
-    0.03
+// X-Achse → sanft um baseRotX
+model.rotation.x = THREE.MathUtils.lerp(
+  model.rotation.x,
+  baseRotX + driftX,
+  0.02
+);
+
+// Y-Achse → um fixe Basis (keine Aufschaukelung)
+if (!hmNeigen && !rising) {
+  const baseYawForDrift = (STATE === "idle") ? rightY : frontalY;
+  const targetYaw = baseYawForDrift + driftY;
+
+  model.rotation.y = THREE.MathUtils.lerp(
+    model.rotation.y,
+    targetYaw,
+    0.02
   );
-
-  // Y-Achse → um fixen Basiswinkel, NICHT auf sich selbst aufsatteln
-  if (!hmNeigen && !rising) {
-    // Basis: im Idle leicht rechts, sonst frontal
-    const baseYawForDrift = (STATE === "idle") ? rightY : frontalY;
-    const targetYaw = baseYawForDrift + driftY;
-
-    model.rotation.y = THREE.MathUtils.lerp(
-      model.rotation.y,
-      targetYaw,
-      0.04
-    );
-  }
-
+}
   renderer.render(scene, camera);
 }
 
