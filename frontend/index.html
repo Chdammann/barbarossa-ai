@@ -512,7 +512,11 @@ function speak(text, slow = false) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
   u.rate = slow ? 0.75 : 1.1;
-  if (maleVoice) u.voice = maleVoice;
+
+  // Verwende männliche Stimme, wenn verfügbar
+  if (maleVoice) {
+    u.voice = maleVoice;
+  }
 
   let lipsyncInterval = null;
   let t = 0;
@@ -562,12 +566,15 @@ function speak(text, slow = false) {
       const smile = jaw * (0.05 + Math.random() * 0.10); // ruhiger
       const frown = jaw * (0.04 + Math.random() * 0.10);
 
+      // ⭐ NEU: Oberlippen-Aktivierung (sehr subtil)
+      const upperLipBoost = jaw * 0.10;
+
       // ====== SETZEN ======
       setBlendshape(jawOpenIndex, jaw);
       setBlendshape(mouthWideIndex, wide);
       setBlendshape(mouthPuckerIndex, puck);
-      setBlendshape(mouthSmileIndex, smile);
-      setBlendshape(mouthFrownIndex, frown);
+      setBlendshape(mouthSmileIndex, smile + upperLipBoost);
+      setBlendshape(mouthFrownIndex, frown * 0.9);
 
     }, 38);
   };
