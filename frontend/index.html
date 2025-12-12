@@ -91,42 +91,38 @@ let audioCtx, analyser, src;
 let model, STATE = "idle";
 let lastTranscript = "";
 let talking = false, greeted = false;
-let mouthCooldown = false;   // 🆕 NEU
-  // Zusatzflag: 1 Frame Verzögerung nach Speech-Ende
+let mouthCooldown = false;
 let justFinishedSpeaking = false;
 let recRunning = false;
-let wakeGuard = false;
 
-
-// jawIndex NICHT hier setzen!
-// --> wird später automatisch gesetzt, sobald das Modell geladen wurde
-
+// 🛡️ Guards
+let wakeGuard = false;               // gegen Wake-Klick
+let recognitionHandled = false;      // gegen doppeltes onend
+let askInProgress = false;           // gegen doppelte /ask
 
 // === Bewegungszustände ===
-let frontalFix = true;              // nach Laden: noch nicht frontal
-let hmNeigen   = false, hmStartTime = 0;
-let rising     = false, riseStartTime = 0;
+let frontalFix = true;
+let hmNeigen = false, hmStartTime = 0;
+let rising = false, riseStartTime = 0;
 
 // ⭐ Rückkehr nach rechts – nur am ENDE gesteuert!
-let toIdlePose   = false, toIdleStart = 0;
-const toIdleDuration = 3000;        // sanfte Rückkehr (kann z.B. 3000 sein)
+let toIdlePose = false, toIdleStart = 0;
+const toIdleDuration = 3000;
 
 // === Animationszeiten (ms) ===
-const hmDuration   = 8000;         // Hmmm sehr langsam
-const riseDuration = 3000;          // Begrüßung / Antwort → frontal
+const hmDuration = 8000;
+const riseDuration = 3000;
 
 // === Grundposition Avatar ===
-let baseRotY = -0.35;               // leicht nach rechts geneigt
+let baseRotY = -0.35;
 let baseRotX = 0.25;
 let baseY = 0;
 
 // 🛡️ NIEMALS gleichzeitig mehrere Bewegungen
-// ❗ Wichtig: toIdlePose DARF NICHT hier gelöscht werden,
-// denn es wird nur von der StateMachine gesetzt!
 function resetMovements() {
   hmNeigen = false;
-  rising   = false;
-  talking  = false;
+  rising = false;
+  talking = false;
 }
 
 /* -----------------------------
@@ -333,27 +329,31 @@ if ("webkitSpeechRecognition" in window) {
   recognition.lang = "de-DE";
   recognition.continuous = false;
 
-  // Ergebnis speichern:
   recognition.onresult = e => {
     lastTranscript = e.results[0][0].transcript;
   };
 
-  // Aufnahme beendet:
   recognition.onend = () => {
-    recRunning = false;   // FIX
-    console.log("✔ Recognition ended");
+    if (recognitionHandled) {
+      console.warn("🛑 recognition.onend doppelt – ignoriert");
+      return;
+    }
+    recognitionHandled = true;
+    recRunning = false;
 
     if (STATE === "listen" && lastTranscript) {
 
-      // 1️⃣ HMMM – Kopf langsam nach links:
+      // 🛡️ nur eine /ask pro Durchlauf
+      if (askInProgress) return;
+      askInProgress = true;
+
+      // 1️⃣ HMMM
       resetMovements();
       STATE = "hmmm";
       hmNeigen = true;
       hmStartTime = performance.now();
       speak("Ähm..... einen Moment", true);
 
-      // Mindestwartezeit:
-      const MIN_HMMM = 4000;
       setTimeout(() => {
 
         fetch("/ask", {
@@ -364,13 +364,11 @@ if ("webkitSpeechRecognition" in window) {
         .then(r => r.json())
         .then(data => {
 
-          // 2️⃣ ANTWORT BEGINNT → frontal
           resetMovements();
           STATE = "answer";
           rising = true;
           riseStartTime = performance.now();
 
-          // 🔁 TTS BLOCK
           fetch("/tts", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -380,19 +378,17 @@ if ("webkitSpeechRecognition" in window) {
           .then(dataTTS => {
             playAudioAndLipsync(dataTTS.audio, dataTTS.lipsync);
           })
-          .catch(err => {
-            console.error("❌ TTS-Fallback:", err);
+          .catch(() => {
             speak(data.answer);
           });
 
-          // 3️⃣ WARTEN BIS FERTIG
           const waitUntilDone = setInterval(() => {
             if (!talking && !rising) {
               clearInterval(waitUntilDone);
               resetMovements();
               greeted = false;
               STATE = "idle";
-
+              askInProgress = false;
               toIdlePose = true;
               toIdleStart = performance.now();
             }
@@ -400,53 +396,44 @@ if ("webkitSpeechRecognition" in window) {
 
         })
         .catch(() => {
+          askInProgress = false;
           resetMovements();
           STATE = "idle";
         });
 
-      }, MIN_HMMM);
+      }, 4000);
 
     } else {
       resetMovements();
       STATE = "idle";
     }
-  }; // <-- Genau hier endet recognition.onend
+  };
+}
 
-} // <-- Ende von if ("webkitSpeechRecognition")
 
- /* ===============================
+/* ===============================
    🏛️ MUSEUMS-RESET (Wake / Fokus)
-   wird NUR bei Ruhemodus / Fokus aktiv
-   greift nicht in normalen Ablauf ein
 ================================ */
 
 function museumReset(reason = "") {
   console.log("🛡️ Museum-Reset", reason);
 
-  // 🛡️ Wake-Guard aktivieren
+  // 🛡️ Wake-Guard
   wakeGuard = true;
   setTimeout(() => {
     wakeGuard = false;
     console.log("🟢 Wake-Guard aufgehoben");
   }, 600);
 
-  // … REST DES RESET-CODES BLEIBT UNVERÄNDERT
-}
-
-
-  // --- Speech sauber abbrechen ---
-  try {
-    speechSynthesis.cancel();
-  } catch (e) {}
+  // --- Speech abbrechen ---
+  try { speechSynthesis.cancel(); } catch (e) {}
 
   if (typeof recognition !== "undefined" && recognition && recRunning) {
-    try {
-      recognition.abort();
-    } catch (e) {}
+    try { recognition.abort(); } catch (e) {}
     recRunning = false;
   }
 
-  // --- State Machine auf Urzustand ---
+  // --- State zurücksetzen ---
   STATE = "idle";
   greeted = false;
   talking = false;
@@ -457,8 +444,10 @@ function museumReset(reason = "") {
   lastTranscript = "";
   justFinishedSpeaking = false;
   mouthCooldown = false;
+  recognitionHandled = false;
+  askInProgress = false;
 
-  // --- Mund neutralisieren ---
+  // --- Mund neutral ---
   if (jawOpenIndex !== null) {
     setBlendshape(jawOpenIndex, 0);
     setBlendshape(mouthWideIndex, 0);
@@ -467,7 +456,7 @@ function museumReset(reason = "") {
     setBlendshape(mouthFrownIndex, 0);
   }
 
-  // --- Kopf & Position neutral ---
+  // --- Kopf & Position ---
   if (model) {
     model.position.y = baseY;
     model.rotation.x = baseRotX;
@@ -475,20 +464,7 @@ function museumReset(reason = "") {
   }
 }
 
-// 🔁 Automatisch auslösen nach Ruhemodus / Tab-Fokus
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && STATE === "idle" && !talking && !recRunning) {
-    museumReset("visibilitychange");
-  }
-});
-
-window.addEventListener("focus", () => {
-  if (STATE === "idle" && !talking && !recRunning) {
-    museumReset("focus");
-  }
-});
-
-// 🔁 Automatisch auslösen nach Ruhemodus / Tab-Fokus
+// 🔁 Trigger nur im echten Idle
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && STATE === "idle" && !talking && !recRunning) {
     museumReset("visibilitychange");
@@ -506,13 +482,19 @@ window.addEventListener("focus", () => {
 ----------------------------- */
 document.getElementById("micBtn").onclick = () => {
 
+  // 🛡️ Wake-Guard: erster Klick nach Ruhemodus tut nichts
+  if (wakeGuard) {
+    console.log("⏳ Klick ignoriert (Wake-Guard)");
+    return;
+  }
+
   // Erste Betätigung → Begrüßung
   if (!greeted) {
     resetMovements();
     greeted = true;
     STATE = "greet";
 
-    frontalFix = false;               // ab jetzt Bewegung erlaubt
+    frontalFix = false;
     rising = true;
     riseStartTime = performance.now();
 
@@ -523,7 +505,7 @@ document.getElementById("micBtn").onclick = () => {
     return;
   }
 
-  // Spätere Betätigung → Spracherkennung starten
+  // Spracherkennung vorhanden?
   if (!recognition) {
     alert("Spracherkennung wird nicht unterstützt.");
     return;
@@ -534,22 +516,22 @@ document.getElementById("micBtn").onclick = () => {
     return;
   }
 
+  // 🛡️ Guards für neuen Durchlauf zurücksetzen
+  recognitionHandled = false;
+  askInProgress = false;
+
   resetMovements();
   lastTranscript = "";
   STATE = "listen";
-  console.log("DEBUG: STATE gesetzt auf LISTEN");
 
   try {
     recognition.start();
-    console.log("DEBUG: recognition.start() AUSGEFÜHRT");
     recRunning = true;
-  } catch(e) {
+  } catch (e) {
     console.warn("❗Recognition start error:", e);
     recRunning = false;
   }
-
-}; // <–– DIESE Klammer schließt onclick WIRKLICH
-
+};
 
 /* -----------------------------
    1) MÄNNLICHE STIMME FEST SETZEN  (GLOBAL!)
