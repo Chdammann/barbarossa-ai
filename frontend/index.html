@@ -343,6 +343,12 @@ if ("webkitSpeechRecognition" in window) {
       return;
     }
 
+    // 🛡️ Ghost-onend ohne aktiven Start ignorieren
+    if (!recRunning) {
+      console.warn("⏸️ recognition.onend ohne recRunning – ignoriert");
+      return;
+    }
+
     // 🛡️ Doppeltes onend verhindern
     if (recognitionHandled) {
       console.warn("🛑 recognition.onend doppelt – ignoriert");
@@ -420,7 +426,6 @@ if ("webkitSpeechRecognition" in window) {
     }
   };
 }
-
 
 /* ===============================
    🏛️ MUSEUMS-RESET (Wake / Fokus)
