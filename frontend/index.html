@@ -464,15 +464,16 @@ function museumReset(reason = "") {
 
 // 🔁 Automatisch auslösen nach Ruhemodus / Tab-Fokus
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) {
+  if (!document.hidden && STATE === "idle" && !talking && !recRunning) {
     museumReset("visibilitychange");
   }
 });
 
 window.addEventListener("focus", () => {
-  museumReset("focus");
+  if (STATE === "idle" && !talking && !recRunning) {
+    museumReset("focus");
+  }
 });
-
 
 /* -----------------------------
    BUTTON – GREET & LISTEN
