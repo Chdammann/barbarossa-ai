@@ -95,6 +95,8 @@ let mouthCooldown = false;   // 🆕 NEU
   // Zusatzflag: 1 Frame Verzögerung nach Speech-Ende
 let justFinishedSpeaking = false;
 let recRunning = false;
+let wakeGuard = false;
+
 
 // jawIndex NICHT hier setzen!
 // --> wird später automatisch gesetzt, sobald das Modell geladen wurde
@@ -412,7 +414,7 @@ if ("webkitSpeechRecognition" in window) {
 
 } // <-- Ende von if ("webkitSpeechRecognition")
 
-  /* ===============================
+ /* ===============================
    🏛️ MUSEUMS-RESET (Wake / Fokus)
    wird NUR bei Ruhemodus / Fokus aktiv
    greift nicht in normalen Ablauf ein
@@ -420,6 +422,17 @@ if ("webkitSpeechRecognition" in window) {
 
 function museumReset(reason = "") {
   console.log("🛡️ Museum-Reset", reason);
+
+  // 🛡️ Wake-Guard aktivieren
+  wakeGuard = true;
+  setTimeout(() => {
+    wakeGuard = false;
+    console.log("🟢 Wake-Guard aufgehoben");
+  }, 600);
+
+  // … REST DES RESET-CODES BLEIBT UNVERÄNDERT
+}
+
 
   // --- Speech sauber abbrechen ---
   try {
@@ -461,6 +474,19 @@ function museumReset(reason = "") {
     model.rotation.y = baseRotY - Math.PI / 2;
   }
 }
+
+// 🔁 Automatisch auslösen nach Ruhemodus / Tab-Fokus
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && STATE === "idle" && !talking && !recRunning) {
+    museumReset("visibilitychange");
+  }
+});
+
+window.addEventListener("focus", () => {
+  if (STATE === "idle" && !talking && !recRunning) {
+    museumReset("focus");
+  }
+});
 
 // 🔁 Automatisch auslösen nach Ruhemodus / Tab-Fokus
 document.addEventListener("visibilitychange", () => {
