@@ -651,14 +651,14 @@ function speak(text, slow = false) {
     lipsyncInterval = null;
     talking = false;
 
-    // ⭐ Satzende → Mund entspannen (DEIN Trick)
-    if (/[.!?]\s*$/.test(text.trim())) {
-      setBlendshape(jawOpenIndex, 0);
-      setBlendshape(mouthWideIndex, 0);
-      setBlendshape(mouthPuckerIndex, 0);
-      setBlendshape(mouthSmileIndex, 0);
-      setBlendshape(mouthFrownIndex, 0);
-    }
+    // ⭐ Satzende → Mund entspannen (nur bei echter Antwort)
+if (STATE === "answer" && /[.!?]\s*$/.test(text.trim())) {
+  setBlendshape(jawOpenIndex, 0);
+  setBlendshape(mouthWideIndex, 0);
+  setBlendshape(mouthPuckerIndex, 0);
+  setBlendshape(mouthSmileIndex, 0);
+  setBlendshape(mouthFrownIndex, 0);
+}
 
     // ⭐ Cooldown gegen Nachklappern
     justFinishedSpeaking = true;
