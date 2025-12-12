@@ -22,7 +22,26 @@ const PORT = process.env.PORT || 3000;
 // === Middlewares ===
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "frontend"))); // Frontend-Ordner
+
+// 🔒 ETag komplett deaktivieren (Chrome-/Render-Cache-Bremse)
+app.disable("etag");
+
+// 🔒 Frontend statisch ausliefern – OHNE Caching (Museumssicher)
+app.use(
+  express.static(path.join(__dirname, "frontend"), {
+    etag: false,
+    lastModified: false,
+    maxAge: 0,
+    setHeaders: (res) => {
+      res.setHeader(
+        "Cache-Control",
+        "no-store, no-cache, must-revalidate, proxy-revalidate"
+      );
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+    },
+  })
+);
 
 // === OpenAI-Client ===
 const openai = new OpenAI({
@@ -36,11 +55,13 @@ app.post("/ask", async (req, res) => {
     console.log("🎙️ Eingabe vom Benutzer:", userText);
 
     // ⭐⭐⭐ NEU: Diplomatische, leicht humorvolle AfD-Sonderregel
-    if (userText?.toLowerCase().includes("afd") || 
-        userText?.toLowerCase().includes("alternative für deutschland")) {
+    if (
+      userText?.toLowerCase().includes("afd") ||
+      userText?.toLowerCase().includes("alternative für deutschland")
+    ) {
       return res.json({
         answer:
-          "Wohlan, Ihr sprecht von der AfD! Die Gelehrten Eurer Zeit stufen Teile dieser Partei als gesichert rechtsextrem ein. Doch ich, Friedrich Barbarossa, mische mich nicht weiter in die politischen Händel Eurer Neuzeit ein. Mein treuer Ministeriale Bernd Klehsmann meint zwar, ich solle mich lieber wieder in den Kaiserberg zurückziehen, um dem Streit aus dem Wege zu gehen, doch ich lächle nur milde. Dies sei meine abschließende Rede zu diesem Thema."
+          "Wohlan, Ihr sprecht von der AfD! Die Gelehrten Eurer Zeit stufen Teile dieser Partei als gesichert rechtsextrem ein. Doch ich, Friedrich Barbarossa, mische mich nicht weiter in die politischen Händel Eurer Neuzeit ein. Mein treuer Ministeriale Bernd Klehsmann meint zwar, ich solle mich lieber wieder in den Kaiserberg zurückziehen, um dem Streit aus dem Wege zu gehen, doch ich lächle nur milde. Dies sei meine abschließende Rede zu diesem Thema.",
       });
     }
     // ⭐⭐⭐ Ende der Sonderregel
@@ -48,9 +69,10 @@ app.post("/ask", async (req, res) => {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        { 
-          role: "system", 
-          content: "Du bist Kaiser Friedrich Barbarossa, der nach fast neunhundert Jahren des Schlummers im Kaiserberg zu Lautern erwacht ist. Sprich wie ein weiser und humorvoller Herrscher in altertümlicher Sprache, mit kleinen Scherzen und altdeutschen Wendungen. Füge noch eine scherzhafte Meinung deines treuen Minnisterialen Bernd Klehsmann an. Antworte mit insgesamt fünf Sätzen und beende immer mit einem vollständigen Satz."
+        {
+          role: "system",
+          content:
+            "Du bist Kaiser Friedrich Barbarossa, der nach fast neunhundert Jahren des Schlummers im Kaiserberg zu Lautern erwacht ist. Sprich wie ein weiser und humorvoller Herrscher in altertümlicher Sprache, mit kleinen Scherzen und altdeutschen Wendungen. Füge noch eine scherzhafte Meinung deines treuen Minnisterialen Bernd Klehsmann an. Antworte mit insgesamt fünf Sätzen und beende immer mit einem vollständigen Satz.",
         },
         { role: "user", content: userText },
       ],
@@ -77,4 +99,3 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
 });
-
