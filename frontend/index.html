@@ -412,6 +412,68 @@ if ("webkitSpeechRecognition" in window) {
 
 } // <-- Ende von if ("webkitSpeechRecognition")
 
+  /* ===============================
+   🏛️ MUSEUMS-RESET (Wake / Fokus)
+   wird NUR bei Ruhemodus / Fokus aktiv
+   greift nicht in normalen Ablauf ein
+================================ */
+
+function museumReset(reason = "") {
+  console.log("🛡️ Museum-Reset", reason);
+
+  // --- Speech sauber abbrechen ---
+  try {
+    speechSynthesis.cancel();
+  } catch (e) {}
+
+  if (typeof recognition !== "undefined" && recognition && recRunning) {
+    try {
+      recognition.abort();
+    } catch (e) {}
+    recRunning = false;
+  }
+
+  // --- State Machine auf Urzustand ---
+  STATE = "idle";
+  greeted = false;
+  talking = false;
+  rising = false;
+  hmNeigen = false;
+  frontalFix = false;
+
+  lastTranscript = "";
+  justFinishedSpeaking = false;
+  mouthCooldown = false;
+
+  // --- Mund neutralisieren ---
+  if (jawOpenIndex !== null) {
+    setBlendshape(jawOpenIndex, 0);
+    setBlendshape(mouthWideIndex, 0);
+    setBlendshape(mouthPuckerIndex, 0);
+    setBlendshape(mouthSmileIndex, 0);
+    setBlendshape(mouthFrownIndex, 0);
+  }
+
+  // --- Kopf & Position neutral ---
+  if (model) {
+    model.position.y = baseY;
+    model.rotation.x = baseRotX;
+    model.rotation.y = baseRotY - Math.PI / 2;
+  }
+}
+
+// 🔁 Automatisch auslösen nach Ruhemodus / Tab-Fokus
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    museumReset("visibilitychange");
+  }
+});
+
+window.addEventListener("focus", () => {
+  museumReset("focus");
+});
+
+
 /* -----------------------------
    BUTTON – GREET & LISTEN
 ----------------------------- */
