@@ -87,7 +87,7 @@ let mouthFrownIndex = null;
 // Audio / Analyse
 let audioCtx, analyser, src;
 
-// Hauptzustände
+// === Hauptzustände ===
 let model, STATE = "idle";
 let lastTranscript = "";
 let talking = false, greeted = false;
@@ -95,13 +95,14 @@ let mouthCooldown = false;
 let justFinishedSpeaking = false;
 let recRunning = false;
 
-// 🛡️ Guards
-let wakeGuard = false;               // gegen Wake-Klick
-let recognitionHandled = false;      // gegen doppeltes onend
-let askInProgress = false;           // gegen doppelte /ask
+// === Guards (Museums-Härtung) ===
+let wakeGuard = false;               // blockt ersten Klick nach Sleep
+let wakeStabilizing = false;         // blockt Recognition direkt nach Wake
+let recognitionHandled = false;      // verhindert doppeltes recognition.onend
+let askInProgress = false;           // garantiert nur EIN /ask pro Durchlauf
 
 // === Bewegungszustände ===
-let frontalFix = true;
+let frontalFix = true;               // nach Laden: noch nicht frontal
 let hmNeigen = false, hmStartTime = 0;
 let rising = false, riseStartTime = 0;
 
@@ -110,11 +111,11 @@ let toIdlePose = false, toIdleStart = 0;
 const toIdleDuration = 3000;
 
 // === Animationszeiten (ms) ===
-const hmDuration = 8000;
-const riseDuration = 3000;
+const hmDuration = 8000;             // Hmmm sehr langsam
+const riseDuration = 3000;           // Begrüßung / Antwort → frontal
 
 // === Grundposition Avatar ===
-let baseRotY = -0.35;
+let baseRotY = -0.35;                // leicht nach rechts geneigt
 let baseRotX = 0.25;
 let baseY = 0;
 
@@ -334,11 +335,21 @@ if ("webkitSpeechRecognition" in window) {
   };
 
   recognition.onend = () => {
+
+    // 🛡️ Wake-Stabilizer: Ghost-onend direkt nach Sleep ignorieren
+    if (wakeStabilizing) {
+      console.warn("⏸️ recognition.onend ignoriert (Wake-Stabilizer)");
+      recRunning = false;
+      return;
+    }
+
+    // 🛡️ Doppeltes onend verhindern
     if (recognitionHandled) {
       console.warn("🛑 recognition.onend doppelt – ignoriert");
       return;
     }
     recognitionHandled = true;
+
     recRunning = false;
 
     if (STATE === "listen" && lastTranscript) {
@@ -418,22 +429,33 @@ if ("webkitSpeechRecognition" in window) {
 function museumReset(reason = "") {
   console.log("🛡️ Museum-Reset", reason);
 
-  // 🛡️ Wake-Guard
+  // 🛡️ Wake-Guard: erster Klick nach Sleep wird ignoriert
   wakeGuard = true;
   setTimeout(() => {
     wakeGuard = false;
     console.log("🟢 Wake-Guard aufgehoben");
   }, 600);
 
-  // --- Speech abbrechen ---
-  try { speechSynthesis.cancel(); } catch (e) {}
+  // 🛡️ Wake-Stabilisierung: Recognition nach Sleep blocken
+  wakeStabilizing = true;
+  setTimeout(() => {
+    wakeStabilizing = false;
+    console.log("🟢 Wake stabilisiert");
+  }, 1200);
+
+  // --- Speech sauber abbrechen ---
+  try {
+    speechSynthesis.cancel();
+  } catch (e) {}
 
   if (typeof recognition !== "undefined" && recognition && recRunning) {
-    try { recognition.abort(); } catch (e) {}
+    try {
+      recognition.abort();
+    } catch (e) {}
     recRunning = false;
   }
 
-  // --- State zurücksetzen ---
+  // --- State Machine auf Urzustand ---
   STATE = "idle";
   greeted = false;
   talking = false;
@@ -444,10 +466,12 @@ function museumReset(reason = "") {
   lastTranscript = "";
   justFinishedSpeaking = false;
   mouthCooldown = false;
+
+  // Guards zurücksetzen
   recognitionHandled = false;
   askInProgress = false;
 
-  // --- Mund neutral ---
+  // --- Mund neutralisieren ---
   if (jawOpenIndex !== null) {
     setBlendshape(jawOpenIndex, 0);
     setBlendshape(mouthWideIndex, 0);
@@ -456,7 +480,7 @@ function museumReset(reason = "") {
     setBlendshape(mouthFrownIndex, 0);
   }
 
-  // --- Kopf & Position ---
+  // --- Kopf & Position neutral ---
   if (model) {
     model.position.y = baseY;
     model.rotation.x = baseRotX;
@@ -476,6 +500,7 @@ window.addEventListener("focus", () => {
     museumReset("focus");
   }
 });
+
 
 /* -----------------------------
    BUTTON – GREET & LISTEN
